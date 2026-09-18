@@ -1,0 +1,61 @@
+{
+  "name": "@unifyit/create-infra9core",
+  "version": "0.1.0",
+  "description": "Interactive, production-minded multi-stack monorepo generator",
+  "type": "module",
+  "bin": {
+    "create-infra9core": "bin/create-infra9core.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "templates",
+    ".editorconfig",
+    ".gitattributes",
+    ".gitignore",
+    ".nvmrc",
+    ".github/workflows/infrastructure-validation.yml",
+    "Makefile",
+    "docs/README.md",
+    "docs/adr/0001-product-agnostic-infrastructure-baseline.md",
+    "docs/openapi.yaml",
+    "docs/runbooks",
+    "infra",
+    "supabase",
+    "tools/validate.sh",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "test:package": "npm pack --dry-run",
+    "validate": "npm test && npm run test:package"
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UnifyLK/Infra9CORE.git"
+  },
+  "bugs": {
+    "url": "https://github.com/UnifyLK/Infra9CORE/issues"
+  },
+  "homepage": "https://github.com/UnifyLK/Infra9CORE#readme",
+  "keywords": [
+    "boilerplate",
+    "monorepo",
+    "supabase",
+    "docker",
+    "caddy",
+    "sveltekit",
+    "flutter",
+    "tauri"
+  ],
+  "author": "UnifyIT",
+  "license": "MIT"
+}

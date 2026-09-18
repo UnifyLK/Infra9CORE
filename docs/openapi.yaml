@@ -1,0 +1,31 @@
+openapi: 3.1.0
+info:
+  title: Product API
+  version: 0.0.0
+  description: Replace this neutral contract as domain endpoints are designed.
+servers:
+  - url: https://api.example.invalid
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Report process health
+      responses:
+        "200":
+          description: Process is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status, requestId]
+      properties:
+        status:
+          type: string
+          const: ok
+        requestId:
+          type: string
+          format: uuid

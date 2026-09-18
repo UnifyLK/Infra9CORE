@@ -1,0 +1,65 @@
+_format_version: "1.1"
+
+consumers:
+  - username: anon
+    keyauth_credentials:
+      - key: __ANON_KEY__
+  - username: service_role
+    keyauth_credentials:
+      - key: __SERVICE_ROLE_KEY__
+  - username: dashboard
+    basicauth_credentials:
+      - username: __DASHBOARD_USERNAME__
+        password: __DASHBOARD_PASSWORD__
+
+acls:
+  - consumer: anon
+    group: anon
+  - consumer: service_role
+    group: admin
+
+services:
+  - name: auth
+    url: http://auth:9999/
+    routes:
+      - name: auth-all
+        strip_path: true
+        paths: [/auth/v1/]
+    plugins:
+      - name: cors
+  - name: rest
+    url: http://rest:3000/
+    routes:
+      - name: rest-all
+        strip_path: true
+        paths: [/rest/v1/]
+    plugins:
+      - name: cors
+      - name: key-auth
+        config: { hide_credentials: false }
+      - name: acl
+        config: { hide_groups_header: true, allow: [admin, anon] }
+  - name: realtime
+    url: http://realtime:4000/socket
+    routes:
+      - name: realtime-all
+        strip_path: true
+        paths: [/realtime/v1/]
+    plugins:
+      - name: cors
+  - name: storage
+    url: http://storage:5000/
+    routes:
+      - name: storage-all
+        strip_path: true
+        paths: [/storage/v1/]
+    plugins:
+      - name: cors
+  - name: functions
+    url: http://functions:9000/
+    routes:
+      - name: functions-all
+        strip_path: true
+        paths: [/functions/v1/]
+    plugins:
+      - name: cors

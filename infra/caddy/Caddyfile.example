@@ -1,0 +1,37 @@
+{
+	email {$TLS_EMAIL}
+	admin 127.0.0.1:2019
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	@supabase path /auth/v1/* /rest/v1/* /realtime/v1/* /storage/v1/* /functions/v1/*
+	handle @supabase {
+		reverse_proxy 127.0.0.1:{$SUPABASE_API_PORT}
+	}
+
+	root * {$APP_STATIC_ROOT}
+	try_files {path} /index.html
+	file_server
+	log {
+		output file /var/log/caddy/app-access.json {
+			roll_size 100MiB
+			roll_keep 10
+		}
+		format json
+	}
+}
+
+{$STUDIO_DOMAIN} {
+	basicauth {
+		{$STUDIO_HTTP_USER} {$STUDIO_HTTP_PASSWORD_HASH}
+	}
+	reverse_proxy 127.0.0.1:{$SUPABASE_STUDIO_PORT}
+}

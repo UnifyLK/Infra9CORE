@@ -1,0 +1,198 @@
+name: ${COMPOSE_PROJECT_NAME:?Set COMPOSE_PROJECT_NAME}
+
+services:
+  db:
+    image: ${IMAGE_REGISTRY}/${SUPABASE_POSTGRES_IMAGE}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: ${JWT_EXPIRY}
+    ports:
+      - "${SUPABASE_BIND_ADDRESS}:${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../supabase/volumes/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+
+  auth:
+    image: ${IMAGE_REGISTRY}/${SUPABASE_GOTRUE_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY}
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT}
+      GOTRUE_SMTP_USER: ${SMTP_USER}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
+    networks: [backend]
+
+  rest:
+    image: ${IMAGE_REGISTRY}/${SUPABASE_POSTGREST_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+    networks: [backend]
+
+  realtime:
+    image: ${IMAGE_REGISTRY}/${SUPABASE_REALTIME_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      DB_AFTER_CONNECT_QUERY: SET search_path TO _realtime
+      DB_ENC_KEY: ${JWT_SECRET}
+      API_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${JWT_SECRET}${JWT_SECRET}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      ENABLE_TAILSCALE: false
+      DNS_NODES: "''"
+    command: ["/bin/sh", "-c", "/app/bin/migrate && /app/bin/realtime eval 'Realtime.Release.seeds(Realtime.Repo)' && /app/bin/server"]
+    networks: [backend]
+
+  imgproxy:
+    image: ${IMAGE_REGISTRY}/${SUPABASE_IMGPROXY_IMAGE}
+    restart: unless-stopped
+    environment:
+      IMGPROXY_BIND: :5001
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
+      IMGPROXY_USE_ETAG: "true"
+      IMGPROXY_ENABLE_WEBP_DETECTION: ${IMGPROXY_ENABLE_WEBP_DETECTION}
+    volumes:
+      - storage-data:/var/lib/storage:ro
+    networks: [backend]
+
+  storage:
+    image: ${IMAGE_REGISTRY}/${SUPABASE_STORAGE_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      rest: { condition: service_started }
+      imgproxy: { condition: service_started }
+    environment:
+      ANON_KEY: ${SUPABASE_ANON_KEY}
+      SERVICE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      FILE_SIZE_LIMIT: ${STORAGE_FILE_SIZE_LIMIT}
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      IMGPROXY_URL: http://imgproxy:5001
+      TENANT_ID: stub
+      REGION: stub
+      GLOBAL_S3_BUCKET: stub
+    volumes:
+      - storage-data:/var/lib/storage
+    networks: [backend]
+
+  meta:
+    image: ${IMAGE_REGISTRY}/${SUPABASE_META_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: ${POSTGRES_DB}
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    networks: [backend]
+
+  functions:
+    image: ${IMAGE_REGISTRY}/${SUPABASE_EDGE_RUNTIME_IMAGE}
+    restart: unless-stopped
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      VERIFY_JWT: ${FUNCTIONS_VERIFY_JWT}
+    volumes:
+      - ../../supabase/functions:/home/deno/functions:ro
+    command: ["start", "--main-service", "/home/deno/functions/main"]
+    networks: [backend]
+
+  kong:
+    image: ${IMAGE_REGISTRY}/${SUPABASE_KONG_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      auth: { condition: service_started }
+      rest: { condition: service_started }
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
+    ports:
+      - "${SUPABASE_BIND_ADDRESS}:${SUPABASE_API_PORT}:8000"
+    volumes:
+      - ../supabase/volumes/api/kong.yml:/home/kong/template.yml:ro
+      - ../supabase/volumes/api/kong-entrypoint.sh:/usr/local/bin/boilerplate-kong-entrypoint:ro
+    entrypoint: ["/usr/local/bin/boilerplate-kong-entrypoint"]
+    networks: [backend]
+
+  studio:
+    image: ${IMAGE_REGISTRY}/${SUPABASE_STUDIO_IMAGE}
+    restart: unless-stopped
+    depends_on:
+      meta: { condition: service_started }
+      kong: { condition: service_started }
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION}
+      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+    ports:
+      - "${SUPABASE_BIND_ADDRESS}:${SUPABASE_STUDIO_PORT}:3000"
+    networks: [backend]
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  storage-data:
