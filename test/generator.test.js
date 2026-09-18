@@ -34,7 +34,9 @@ test("always creates the project structure contract", async () => {
     }
     for (const file of [
       ".editorconfig", ".gitattributes", ".gitignore", ".nvmrc",
-      "LICENSE", "Makefile", "README.md",
+      "LICENSE", "Makefile", "README.md", "infra/docker/docker-compose.yml",
+      "infra/caddy/Caddyfile.example", "supabase/functions/main/index.ts",
+      "tools/validate.sh",
     ]) {
       assert.ok((await readFile(path.join(destination, file))).length > 0);
     }
@@ -53,7 +55,7 @@ test("creates an isolated multi-stack repository", async () => {
     const result = await generateProject({
       destination, projectName: "Acme Platform",
       apps: ["sveltekit", "flutter", "python", "go", "rust", "tauri", "custom"],
-      features: ["supabase", "caddy", "ci"], packageManager: "pnpm",
+      features: ["ci"], packageManager: "pnpm",
       git: false, install: false,
     });
     assert.equal(result.created, true);

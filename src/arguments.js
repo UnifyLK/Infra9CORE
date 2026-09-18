@@ -2,6 +2,7 @@ import { parseArgs } from "node:util";
 import { APP_TYPES, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
 
 function commaList(value) {
+  if (value.trim().toLowerCase() === "none") return [];
   return value
     .split(",")
     .map((item) => item.trim().toLowerCase())

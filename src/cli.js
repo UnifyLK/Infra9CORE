@@ -9,8 +9,8 @@ Usage:
 
 Options:
   -n, --name <name>               Project display name
-  -a, --apps <list>               sveltekit,flutter,python,go,rust,tauri,custom
-  -f, --features <list>           supabase,caddy,ci
+  -a, --apps <list>               sveltekit,flutter,python,go,rust,tauri,custom,none
+  -f, --features <list>           Optional overlays: ci or none
   -p, --package-manager <name>    pnpm, npm, yarn, or bun
   -y, --yes                       Accept defaults; disable prompts
       --install                   Install JavaScript dependencies
@@ -21,7 +21,7 @@ Options:
   -h, --help                      Show this help
 
 Example:
-  npx @unifyit/create-infra9core@latest my-product --apps sveltekit,flutter,python
+  npx @unifyit/create-infra9core@latest my-product --apps sveltekit,flutter,python --features ci
 `;
 
 export async function run(argv) {

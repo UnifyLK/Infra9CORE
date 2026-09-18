@@ -15,8 +15,10 @@ const baseFiles = [
   ["nvmrc", ".nvmrc"],
   ["LICENSE", "LICENSE"],
   ["docs", "docs"],
-  ["migrations", "supabase/migrations"],
-  ["rollbacks", "supabase/rollbacks"],
+  ["infra", "infra"],
+  ["Makefile", "Makefile"],
+  ["supabase", "supabase"],
+  ["tools", "tools"],
 ];
 
 export function slugify(value) {
@@ -68,22 +70,6 @@ async function copyBaseline(root, features) {
       path.join(root, destination),
     );
   }
-  if (features.includes("supabase")) {
-    await copyPath(
-      path.join(projectTemplates, "features/supabase/infra"),
-      path.join(root, "infra"),
-    );
-    await copyPath(
-      path.join(projectTemplates, "features/supabase/supabase/functions"),
-      path.join(root, "supabase/functions"),
-    );
-  }
-  if (features.includes("caddy")) {
-    await copyPath(
-      path.join(projectTemplates, "features/caddy/infra/caddy"),
-      path.join(root, "infra/caddy"),
-    );
-  }
   if (features.includes("ci")) {
     await copyPath(
       path.join(projectTemplates, "features/github-ci/.github"),
@@ -132,24 +118,8 @@ async function createWorkspaceFiles(root, config, apps) {
 
 async function createProjectReadme(root, config, apps) {
   const appList = apps.map(({ type, name }) => `- \`apps/${name}\`: ${type}`).join("\n") || "- No application recipes selected";
-  const infra = config.features.map((feature) => `\`${feature}\``).join(", ") || "none";
-  await writeText(path.join(root, "README.md"), `# ${config.projectName}\n\nGenerated with [Infra9CORE](https://github.com/UnifyLK/Infra9CORE).\n\n## Applications\n\n${appList}\n\n## Infrastructure\n\nEnabled capabilities: ${infra}.\n\nProject identity, domains, ports, credentials, registry locations, and deployment targets belong in environment configuration. Never commit secrets.\n\n## Start\n\n${config.features.includes("supabase") ? "```bash\nmake env\n# Replace every CHANGE_ME value in infra/env/.env\nmake doctor\nmake up\nmake migrate\n```" : "Add project-specific lifecycle commands after the architecture is decided."}\n`);
-}
-
-async function createMakefile(root, hasSupabase) {
-  if (hasSupabase) {
-    await copyPath(
-      path.join(projectTemplates, "features/supabase/Makefile"),
-      path.join(root, "Makefile"),
-    );
-    await copyPath(
-      path.join(projectTemplates, "features/supabase/tools/validate.sh"),
-      path.join(root, "tools/validate.sh"),
-    );
-    return;
-  }
-  await writeText(path.join(root, "Makefile"), `.DEFAULT_GOAL := help\n.PHONY: help validate\nhelp: ## Show available commands\n\t@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\\n\\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-12s %s\\n", $$1, $$2}' $(MAKEFILE_LIST)\nvalidate: ## Run repository-static checks\n\t@tools/validate.sh\n`);
-  await writeText(path.join(root, "tools/validate.sh"), `#!/usr/bin/env bash\nset -Eeuo pipefail\n\ngit diff --check 2>/dev/null || true\nprintf 'Static repository validation passed.\\n'\n`, 0o755);
+  const overlays = config.features.map((feature) => `\`${feature}\``).join(", ") || "none";
+  await writeText(path.join(root, "README.md"), `# ${config.projectName}\n\nGenerated with [Infra9CORE](https://github.com/UnifyLK/Infra9CORE).\n\n## Applications\n\n${appList}\n\n## Infrastructure\n\nCore capabilities: Docker Compose, self-hosted Supabase, native Caddy, migrations, backup/restore, and observability.\n\nOptional overlays: ${overlays}.\n\nProject identity, domains, ports, credentials, registry locations, and deployment targets belong in environment configuration. Never commit secrets.\n\n## Start\n\n\`\`\`bash\nmake env\n# Replace every CHANGE_ME value in infra/env/.env\nmake doctor\nmake up\nmake migrate\n\`\`\`\n`);
 }
 
 export async function generateProject(rawOptions, cwd = process.cwd()) {
@@ -178,20 +148,16 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
   await writeText(path.join(config.destination, "tools/.gitkeep"), "");
   await createWorkspaceFiles(config.destination, config, apps);
   await createProjectReadme(config.destination, config, apps);
-  await createMakefile(config.destination, config.features.includes("supabase"));
-
-  if (config.features.includes("supabase")) {
-    await replaceInFile(path.join(config.destination, "infra/env/.env.example"), [
-      ["PROJECT_SLUG=change-me", `PROJECT_SLUG=${config.slug}`],
-      ["COMPOSE_PROJECT_NAME=change-me", `COMPOSE_PROJECT_NAME=${config.slug}`],
-    ]);
-    for (const script of ["tools/validate.sh", "infra/supabase/volumes/api/kong-entrypoint.sh"]) {
-      await chmod(path.join(config.destination, script), 0o755);
-    }
-    const scripts = await import("node:fs/promises").then(({ readdir }) => readdir(path.join(config.destination, "infra/scripts")));
-    for (const script of scripts.filter((name) => name.endsWith(".sh"))) {
-      await chmod(path.join(config.destination, "infra/scripts", script), 0o755);
-    }
+  await replaceInFile(path.join(config.destination, "infra/env/.env.example"), [
+    ["PROJECT_SLUG=change-me", `PROJECT_SLUG=${config.slug}`],
+    ["COMPOSE_PROJECT_NAME=change-me", `COMPOSE_PROJECT_NAME=${config.slug}`],
+  ]);
+  for (const script of ["tools/validate.sh", "infra/supabase/volumes/api/kong-entrypoint.sh"]) {
+    await chmod(path.join(config.destination, script), 0o755);
+  }
+  const scripts = await import("node:fs/promises").then(({ readdir }) => readdir(path.join(config.destination, "infra/scripts")));
+  for (const script of scripts.filter((name) => name.endsWith(".sh"))) {
+    await chmod(path.join(config.destination, "infra/scripts", script), 0o755);
   }
 
   if (config.git) {

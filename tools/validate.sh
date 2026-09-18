@@ -10,14 +10,14 @@ node_major="$(node --version | sed -E 's/^v([0-9]+).*/\1/')"
   exit 1
 }
 
-for file in templates/project/features/supabase/infra/scripts/*.sh; do
+for file in templates/project/base/infra/scripts/*.sh; do
   bash -n "${file}"
 done
-sh -n templates/project/features/supabase/infra/supabase/volumes/api/kong-entrypoint.sh
+sh -n templates/project/base/infra/supabase/volumes/api/kong-entrypoint.sh
 
 docker compose \
-  --env-file templates/project/features/supabase/infra/env/.env.example \
-  --file templates/project/features/supabase/infra/docker/docker-compose.yml \
+  --env-file templates/project/base/infra/env/.env.example \
+  --file templates/project/base/infra/docker/docker-compose.yml \
   config --quiet
 
 if grep -RInE --exclude-dir='.git' --exclude='.env.example' --exclude='validate.sh' \

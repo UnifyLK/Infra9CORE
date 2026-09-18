@@ -8,14 +8,14 @@ npx @unifyit/create-infra9core@latest
 ```
 
 It creates a production-minded repository with selectable application stacks and
-a consistent Supabase, Docker, native-Caddy, migration, observability, CI, ADR,
-and runbook baseline.
+an invariant Supabase, Docker, native-Caddy, migration, observability, ADR, and
+runbook baseline. CI is available as an optional overlay.
 
 ## Repository separation
 
 - `src/` contains only the Infra9CORE generator implementation.
 - `templates/project/base/` contains the invariant generated-project skeleton.
-- `templates/project/features/` contains optional infrastructure capabilities.
+- `templates/project/features/` contains optional overlays such as CI.
 - `templates/apps/` contains selectable application stacks.
 - `test/` validates the CLI and its generated output.
 
@@ -41,7 +41,7 @@ or business logic from existing projects.
 ```bash
 npx @unifyit/create-infra9core@latest my-product \
   --apps sveltekit,flutter,python \
-  --features supabase,caddy,ci \
+  --features ci \
   --package-manager pnpm
 ```
 

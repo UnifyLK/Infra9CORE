@@ -8,7 +8,7 @@ export const APP_TYPES = [
   "custom",
 ];
 
-export const FEATURES = ["supabase", "caddy", "ci"];
+export const FEATURES = ["ci"];
 export const PACKAGE_MANAGERS = ["pnpm", "npm", "yarn", "bun"];
 
 export const DEFAULTS = Object.freeze({
