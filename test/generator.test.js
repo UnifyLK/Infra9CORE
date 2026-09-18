@@ -29,6 +29,10 @@ test("creates an isolated multi-stack repository", async () => {
     });
     assert.equal(result.created, true);
     assert.match(await readFile(path.join(destination, "README.md"), "utf8"), /Acme Platform/);
+    assert.equal(
+      JSON.parse(await readFile(path.join(destination, "package.json"), "utf8")).engines.node,
+      ">=24.0.0",
+    );
     assert.match(await readFile(path.join(destination, "infra/env/.env.example"), "utf8"), /PROJECT_SLUG=acme-platform/);
     assert.match(await readFile(path.join(destination, "apps/api-go/go.mod"), "utf8"), /example\.invalid\/acme-platform-api-go/);
     assert.match(await readFile(path.join(destination, "apps/api-python/pyproject.toml"), "utf8"), /fastapi/);

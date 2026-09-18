@@ -80,6 +80,7 @@ function generatedPackage(config, apps) {
     name: config.slug,
     version: "0.0.0",
     private: true,
+    engines: { node: ">=24.0.0" },
     ...(config.packageManager === "pnpm" ? { packageManager: "pnpm@10.15.1" } : {}),
     ...(config.packageManager !== "pnpm" ? { workspaces: ["apps/*", "packages/*"] } : {}),
     scripts: hasJavaScript ? {

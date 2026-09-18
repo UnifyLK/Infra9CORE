@@ -38,7 +38,11 @@ Use `--dry-run` to inspect the plan and `--yes` to accept defaults. Run
 
 ## Development
 
+Infra9CORE requires Node.js 24 or newer. The repository's `.nvmrc` pins the
+development runtime to Node 24.
+
 ```bash
+nvm use
 npm test
 npm run test:package
 node ./bin/create-infra9core.js demo --apps python,go --no-git

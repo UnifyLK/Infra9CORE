@@ -32,7 +32,7 @@
     "validate": "npm test && npm run test:package"
   },
   "engines": {
-    "node": ">=20.11"
+    "node": ">=24.0.0"
   },
   "publishConfig": {
     "access": "public",
