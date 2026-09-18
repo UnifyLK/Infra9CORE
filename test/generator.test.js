@@ -17,6 +17,35 @@ test("dry run does not create a destination", async () => {
   }
 });
 
+test("always creates the project structure contract", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-structure-"));
+  const destination = path.join(parent, "structure-test");
+  try {
+    await generateProject({
+      destination,
+      projectName: "Structure Test",
+      apps: [],
+      features: [],
+      packageManager: "npm",
+      git: false,
+    });
+    for (const directory of ["apps", "docs", "infra", "packages", "shared", "supabase", "tools"]) {
+      assert.ok((await readdir(path.join(destination, directory))).length >= 0);
+    }
+    for (const file of [
+      ".editorconfig", ".gitattributes", ".gitignore", ".nvmrc",
+      "LICENSE", "Makefile", "README.md",
+    ]) {
+      assert.ok((await readFile(path.join(destination, file))).length > 0);
+    }
+    await assert.rejects(() => readdir(path.join(destination, "src")), { code: "ENOENT" });
+    await assert.rejects(() => readdir(path.join(destination, "test")), { code: "ENOENT" });
+    await assert.rejects(() => readdir(path.join(destination, "templates")), { code: "ENOENT" });
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
 test("creates an isolated multi-stack repository", async () => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-generate-"));
   const destination = path.join(parent, "acme-platform");

@@ -7,12 +7,17 @@ import { assertDestination, copyPath, replaceInFile, writeText } from "./files.j
 import { runCommand } from "./process.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const commonPaths = [
-  ".editorconfig", ".gitattributes", ".nvmrc", "LICENSE",
-  "docs/README.md", "docs/adr", "docs/openapi.yaml", "docs/runbooks", "supabase/migrations",
-  "supabase/rollbacks",
+const projectTemplates = path.join(packageRoot, "templates/project");
+const baseFiles = [
+  ["editorconfig", ".editorconfig"],
+  ["gitattributes", ".gitattributes"],
+  ["gitignore", ".gitignore"],
+  ["nvmrc", ".nvmrc"],
+  ["LICENSE", "LICENSE"],
+  ["docs", "docs"],
+  ["migrations", "supabase/migrations"],
+  ["rollbacks", "supabase/rollbacks"],
 ];
-const supabasePaths = ["infra/docker", "infra/env", "infra/scripts", "infra/supabase", "infra/backups", "supabase/functions"];
 
 export function slugify(value) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -57,20 +62,33 @@ export function describePlan(config) {
 }
 
 async function copyBaseline(root, features) {
-  for (const relative of commonPaths) {
-    await copyPath(path.join(packageRoot, relative), path.join(root, relative));
+  for (const [source, destination] of baseFiles) {
+    await copyPath(
+      path.join(projectTemplates, "base", source),
+      path.join(root, destination),
+    );
   }
-  await copyPath(path.join(packageRoot, "templates/base/gitignore"), path.join(root, ".gitignore"));
   if (features.includes("supabase")) {
-    for (const relative of supabasePaths) {
-      await copyPath(path.join(packageRoot, relative), path.join(root, relative));
-    }
+    await copyPath(
+      path.join(projectTemplates, "features/supabase/infra"),
+      path.join(root, "infra"),
+    );
+    await copyPath(
+      path.join(projectTemplates, "features/supabase/supabase/functions"),
+      path.join(root, "supabase/functions"),
+    );
   }
   if (features.includes("caddy")) {
-    await copyPath(path.join(packageRoot, "infra/caddy"), path.join(root, "infra/caddy"));
+    await copyPath(
+      path.join(projectTemplates, "features/caddy/infra/caddy"),
+      path.join(root, "infra/caddy"),
+    );
   }
   if (features.includes("ci")) {
-    await copyPath(path.join(packageRoot, ".github"), path.join(root, ".github"));
+    await copyPath(
+      path.join(projectTemplates, "features/github-ci/.github"),
+      path.join(root, ".github"),
+    );
   }
 }
 
@@ -120,8 +138,14 @@ async function createProjectReadme(root, config, apps) {
 
 async function createMakefile(root, hasSupabase) {
   if (hasSupabase) {
-    await copyPath(path.join(packageRoot, "Makefile"), path.join(root, "Makefile"));
-    await copyPath(path.join(packageRoot, "tools/validate.sh"), path.join(root, "tools/validate.sh"));
+    await copyPath(
+      path.join(projectTemplates, "features/supabase/Makefile"),
+      path.join(root, "Makefile"),
+    );
+    await copyPath(
+      path.join(projectTemplates, "features/supabase/tools/validate.sh"),
+      path.join(root, "tools/validate.sh"),
+    );
     return;
   }
   await writeText(path.join(root, "Makefile"), `.DEFAULT_GOAL := help\n.PHONY: help validate\nhelp: ## Show available commands\n\t@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\\n\\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-12s %s\\n", $$1, $$2}' $(MAKEFILE_LIST)\nvalidate: ## Run repository-static checks\n\t@tools/validate.sh\n`);
@@ -133,12 +157,25 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
   if (config.dryRun) return { config, plan: describePlan(config), created: false };
   await assertDestination(config.destination, config.force);
   await mkdir(config.destination, { recursive: true });
+  for (const directory of [
+    "apps", "docs", "infra", "packages", "shared", "supabase", "tools",
+    "supabase/functions", "supabase/migrations", "supabase/rollbacks",
+  ]) {
+    await mkdir(path.join(config.destination, directory), { recursive: true });
+  }
   await copyBaseline(config.destination, config.features);
-  const apps = await createApplications(config.destination, config.apps, config.projectName);
-  await mkdir(path.join(config.destination, "packages"), { recursive: true });
-  await mkdir(path.join(config.destination, "shared"), { recursive: true });
+  const apps = await createApplications(
+    config.destination,
+    config.apps,
+    config.projectName,
+    config.slug,
+  );
+  await writeText(path.join(config.destination, "apps/.gitkeep"), "");
+  await writeText(path.join(config.destination, "infra/.gitkeep"), "");
   await writeText(path.join(config.destination, "packages/.gitkeep"), "");
   await writeText(path.join(config.destination, "shared/.gitkeep"), "");
+  await writeText(path.join(config.destination, "supabase/functions/.gitkeep"), "");
+  await writeText(path.join(config.destination, "tools/.gitkeep"), "");
   await createWorkspaceFiles(config.destination, config, apps);
   await createProjectReadme(config.destination, config, apps);
   await createMakefile(config.destination, config.features.includes("supabase"));

@@ -1,18 +1,16 @@
-# Engineering documentation
+# Infra9CORE contributor documentation
 
-Write documentation in the order used to build the system:
+This directory documents the generator itself. Files destined for generated
+repositories belong under `templates/project/`, never here.
 
-1. domain model and ubiquitous language
-2. architecture decision records
-3. OpenAPI contracts
-4. hexagonal application boundaries
-5. forward and rollback database migrations
-6. authentication and RLS policy matrix
-7. observability and trace propagation
-8. CI/CD and release controls
-9. frontend behavior and accessibility
-10. unit, integration, and end-to-end test strategy
-11. operational runbooks
+## Boundaries
 
-ADRs are append-only historical records. When a decision changes, create a new
-ADR that supersedes the old one rather than rewriting history.
+- `bin/`: npm executable entry point
+- `src/`: CLI orchestration, prompts, validation, and template rendering
+- `templates/apps/`: selectable application skeletons
+- `templates/project/base/`: files included in every generated repository
+- `templates/project/features/`: files included by feature selection
+- `test/`: generator behavior and generated-output contract tests
+
+Generated repositories must always contain `apps`, `docs`, `infra`, `packages`,
+`shared`, `supabase`, and `tools`, plus the documented root configuration files.

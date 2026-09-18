@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "{{PROJECT_NAME}}",
+  "version": "0.1.0",
+  "identifier": "com.example.templateprojectdesktop",
+  "build": {
+    "frontendDist": "../"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "{{PROJECT_NAME}}",
+        "width": 1000,
+        "height": 700
+      }
+    ]
+  },
+  "bundle": {
+    "active": false
+  }
+}

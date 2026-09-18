@@ -11,6 +11,18 @@ It creates a production-minded repository with selectable application stacks and
 a consistent Supabase, Docker, native-Caddy, migration, observability, CI, ADR,
 and runbook baseline.
 
+## Repository separation
+
+- `src/` contains only the Infra9CORE generator implementation.
+- `templates/project/base/` contains the invariant generated-project skeleton.
+- `templates/project/features/` contains optional infrastructure capabilities.
+- `templates/apps/` contains selectable application stacks.
+- `test/` validates the CLI and its generated output.
+
+Every generated project receives these top-level boundaries, even when an
+optional feature or application stack is not selected: `apps/`, `docs/`,
+`infra/`, `packages/`, `shared/`, `supabase/`, and `tools/`.
+
 ## Supported application recipes
 
 - SvelteKit web application
