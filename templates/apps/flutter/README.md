@@ -1,3 +1,4 @@
 # Flutter application
 
-Run `flutter create . --project-name {{PROJECT_SNAKE}}_mobile` once to add the desired native platform runners, then run `flutter test`.
+Infra9CORE creates the selected native Flutter platform runners during generation.
+Run `flutter pub get`, then `flutter test`.

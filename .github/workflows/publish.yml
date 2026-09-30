@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Existing version tag to publish (for example, v0.1.0)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -17,6 +22,9 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}
+          fetch-depth: 0
       - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
@@ -27,6 +35,13 @@ jobs:
         run: npm ci
       - name: Validate release package
         run: npm run validate
+      - name: Verify release identity
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}
+        run: |
+          test "$RELEASE_TAG" = "v$(node -p \"require('./package.json').version\")"
+          git fetch origin main --depth=1
+          git merge-base --is-ancestor HEAD origin/main
       - name: Publish with provenance
         run: npm publish --access public --provenance
         env:
