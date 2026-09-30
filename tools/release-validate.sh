@@ -51,8 +51,11 @@ python3 -m venv "$python_venv"
   go test ./...
 )
 cargo check --manifest-path "$audit_project/apps/api-rust/Cargo.toml"
-flutter pub get --directory "$audit_project/apps/mobile"
-flutter analyze "$audit_project/apps/mobile"
-flutter test "$audit_project/apps/mobile"
+(
+  cd "$audit_project/apps/mobile"
+  flutter pub get
+  flutter analyze
+  flutter test
+)
 
 echo "Infra9CORE release-candidate validation passed."
