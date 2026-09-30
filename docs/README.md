@@ -14,8 +14,11 @@ repositories belong under `templates/project/`, never here.
 
 Generated repositories must always contain `apps`, `docs`, `infra`, `packages`,
 `shared`, `supabase`, and `tools`, plus the documented root configuration files.
-# Infra9CORE documentation
+
+## Policies and runbooks
 
 - [Long-term stability roadmap](long-term-stability-roadmap.md)
 - [Support policy](support-policy.md)
 - [Release execution plan](release-execution-plan.md)
+- [Dependency and image maintenance policy](dependency-and-image-policy.md)
+- [Release recovery runbook](runbooks/release-recovery.md)
