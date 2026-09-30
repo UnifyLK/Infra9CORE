@@ -41,8 +41,8 @@ jobs:
         run: |
           package_version="$(node -p "require('./package.json').version")"
           test "$RELEASE_TAG" = "v$package_version"
-          git fetch origin main --depth=1
-          git merge-base --is-ancestor HEAD origin/main
+          git fetch origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor HEAD refs/remotes/origin/main
       - name: Publish with provenance
         run: npm publish --access public --provenance
         env:
