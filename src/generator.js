@@ -1,7 +1,7 @@
 import { chmod, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { APP_TYPES, DEFAULTS, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
+import { APP_TYPES, DEFAULTS, FEATURES, FLUTTER_PLATFORMS, PACKAGE_MANAGERS } from "./constants.js";
 import { createApplications } from "./app-recipes.js";
 import { assertDestination, copyPath, replaceInFile, writeText } from "./files.js";
 import { runCommand } from "./process.js";
@@ -40,6 +40,13 @@ export function normalizeOptions(options, cwd = process.cwd()) {
   if (unknownApps.length) throw new Error(`Unknown application type: ${unknownApps.join(", ")}`);
   if (unknownFeatures.length) throw new Error(`Unknown feature: ${unknownFeatures.join(", ")}`);
   if (!PACKAGE_MANAGERS.includes(packageManager)) throw new Error(`Unknown package manager: ${packageManager}`);
+  const organizationId = options.organizationId ?? "com.example";
+  if (!/^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(organizationId)) {
+    throw new Error(`Invalid reverse-domain organization ID: ${organizationId}`);
+  }
+  const flutterPlatforms = options.flutterPlatforms ?? [...FLUTTER_PLATFORMS];
+  const unknownPlatforms = flutterPlatforms.filter((item) => !FLUTTER_PLATFORMS.includes(item));
+  if (unknownPlatforms.length) throw new Error(`Unknown Flutter platform: ${unknownPlatforms.join(", ")}`);
   return {
     ...options,
     destination: path.resolve(cwd, destinationInput),
@@ -48,6 +55,8 @@ export function normalizeOptions(options, cwd = process.cwd()) {
     apps,
     features,
     packageManager,
+    organizationId,
+    flutterPlatforms,
   };
 }
 
@@ -58,6 +67,7 @@ export function describePlan(config) {
     `Applications:   ${config.apps.join(", ") || "none"}`,
     `Infrastructure: ${config.features.join(", ") || "none"}`,
     `Package manager:${config.packageManager}`,
+    `Organization ID:${config.organizationId}`,
     `Initialize Git: ${config.git ? "yes" : "no"}`,
     `Install deps:   ${config.install ? "yes" : "no"}`,
   ].join("\n");
@@ -90,6 +100,7 @@ function generatedPackage(config, apps) {
     scripts: hasJavaScript ? {
       build: "turbo run build",
       dev: "turbo run dev",
+      lint: "turbo run lint",
       test: "turbo run test",
       typecheck: "turbo run typecheck",
     } : {},
@@ -109,6 +120,7 @@ async function createWorkspaceFiles(root, config, apps) {
       tasks: {
         build: { dependsOn: ["^build"], outputs: ["dist/**", "build/**", ".svelte-kit/**"] },
         dev: { cache: false, persistent: true },
+        lint: { dependsOn: ["^lint"], outputs: [] },
         test: { dependsOn: ["^build"], outputs: ["coverage/**"] },
         typecheck: { dependsOn: ["^typecheck"], outputs: [] },
       },
@@ -139,6 +151,7 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
     config.apps,
     config.projectName,
     config.slug,
+    config,
   );
   await writeText(path.join(config.destination, "apps/.gitkeep"), "");
   await writeText(path.join(config.destination, "infra/.gitkeep"), "");

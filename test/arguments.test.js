@@ -14,6 +14,15 @@ test("parses non-interactive multi-stack arguments", () => {
   assert.equal(options.yes, true);
 });
 
+test("parses application identity and Flutter platforms", () => {
+  const options = parseCliArguments([
+    "example", "--apps", "flutter", "--organization-id", "com.unifyit",
+    "--flutter-platforms", "android,ios,web",
+  ]);
+  assert.equal(options.organizationId, "com.unifyit");
+  assert.deepEqual(options.flutterPlatforms, ["android", "ios", "web"]);
+});
+
 test("rejects unknown application recipes", () => {
   assert.throws(() => parseCliArguments(["example", "--apps", "unknown"]), /Unknown application type/);
 });

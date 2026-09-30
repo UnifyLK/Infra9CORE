@@ -36,6 +36,16 @@ export async function collectInteractiveOptions(initial) {
       `Package manager [${PACKAGE_MANAGERS.join(", ")}]`,
       DEFAULTS.packageManager,
     );
+    const organizationId = initial.organizationId ?? (
+      apps.includes("flutter") || apps.includes("tauri")
+        ? await ask(rl, "Reverse-domain organization ID", "com.example")
+        : "com.example"
+    );
+    const flutterPlatforms = initial.flutterPlatforms ?? (
+      apps.includes("flutter")
+        ? list(await ask(rl, "Flutter platforms", "android,ios,web,linux,macos,windows"))
+        : undefined
+    );
     const installAnswer = initial.install || (await ask(rl, "Install JavaScript dependencies? [y/N]", "N"));
     return {
       ...initial,
@@ -44,6 +54,8 @@ export async function collectInteractiveOptions(initial) {
       apps,
       features,
       packageManager,
+      organizationId,
+      flutterPlatforms,
       install: initial.install || /^y(es)?$/i.test(installAnswer),
     };
   } finally {

@@ -12,6 +12,8 @@ Options:
   -a, --apps <list>               sveltekit,flutter,python,go,rust,tauri,custom,none
   -f, --features <list>           Optional overlays: ci or none
   -p, --package-manager <name>    pnpm, npm, yarn, or bun
+      --organization-id <id>      Reverse-domain app ID (default: com.example)
+      --flutter-platforms <list>  android,ios,web,linux,macos,windows
   -y, --yes                       Accept defaults; disable prompts
       --install                   Install JavaScript dependencies
       --no-git                    Do not initialize a Git repository
@@ -21,7 +23,7 @@ Options:
   -h, --help                      Show this help
 
 Example:
-  npx @unifyit/create-infra9core@latest my-product --apps sveltekit,flutter,python --features ci
+  npx @unifyit/create-infra9core@latest my-product --apps sveltekit,flutter,python --features ci --organization-id com.example
 `;
 
 export async function run(argv) {

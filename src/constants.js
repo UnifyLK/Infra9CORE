@@ -10,6 +10,7 @@ export const APP_TYPES = [
 
 export const FEATURES = ["ci"];
 export const PACKAGE_MANAGERS = ["pnpm", "npm", "yarn", "bun"];
+export const FLUTTER_PLATFORMS = ["android", "ios", "web", "linux", "macos", "windows"];
 
 export const DEFAULTS = Object.freeze({
   apps: ["sveltekit"],

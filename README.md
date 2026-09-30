@@ -60,7 +60,15 @@ npm run test:package
 node ./bin/create-infra9core.js demo --apps python,go --no-git
 ```
 
-Publishing requires npm organization access and two-factor authentication:
+Publishing is performed by the `Publish package` GitHub Actions workflow, which
+runs when a GitHub release is published (or by manual dispatch). Before the first
+release, configure the `npm-production` environment with either an npm trusted
+publisher for this repository or an `NPM_TOKEN` secret with package publish access.
+The workflow publishes a public scoped package with npm provenance after validating
+the package.
+
+For a deliberate local release only, npm organization access and two-factor
+authentication are required:
 
 ```bash
 npm publish --access public

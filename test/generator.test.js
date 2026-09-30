@@ -56,7 +56,7 @@ test("creates an isolated multi-stack repository", async () => {
       destination, projectName: "Acme Platform",
       apps: ["sveltekit", "flutter", "python", "go", "rust", "tauri", "custom"],
       features: ["ci"], packageManager: "pnpm",
-      git: false, install: false,
+      git: false, install: false, scaffoldSdks: false,
     });
     assert.equal(result.created, true);
     assert.match(await readFile(path.join(destination, "README.md"), "utf8"), /Acme Platform/);
