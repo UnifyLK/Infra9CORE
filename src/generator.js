@@ -94,7 +94,7 @@ function generatedPackage(config, apps) {
     name: config.slug,
     version: "0.0.0",
     private: true,
-    engines: { node: ">=24.0.0" },
+    engines: { node: ">=24 <25" },
     ...(config.packageManager === "pnpm" ? { packageManager: "pnpm@10.15.1" } : {}),
     ...(config.packageManager !== "pnpm" ? { workspaces: ["apps/*", "packages/*"] } : {}),
     scripts: hasJavaScript ? {
@@ -135,6 +135,25 @@ async function createProjectReadme(root, config, apps) {
   await writeText(path.join(root, "README.md"), `# ${config.projectName}\n\nGenerated with [Infra9CORE](https://github.com/UnifyLK/Infra9CORE).\n\n## Applications\n\n${appList}\n\n## Infrastructure\n\nCore capabilities: Docker Compose, self-hosted Supabase, native Caddy, migrations, backup/restore, and observability.\n\nOptional overlays: ${overlays}.\n\nProject identity, domains, ports, credentials, registry locations, and deployment targets belong in environment configuration. Never commit secrets.\n\n## Start\n\n\`\`\`bash\nmake env\n# Replace every CHANGE_ME value in infra/env/.env\nmake doctor\nmake up\nmake migrate\n\`\`\`\n`);
 }
 
+async function createManifest(root, config, apps) {
+  const version = await packageVersion();
+  const appDirectories = Object.fromEntries(apps.map(({ type, name }) => [type, name]));
+  await writeText(path.join(root, ".infra9core", "manifest.json"), JSON.stringify({
+    schemaVersion: 1,
+    templateContractVersion: 1,
+    generator: { package: "@unifyit/create-infra9core", version },
+    project: {
+      slug: config.slug,
+      apps: config.apps,
+      appDirectories,
+      features: config.features,
+      packageManager: config.packageManager,
+      organizationId: config.organizationId,
+      flutterPlatforms: config.flutterPlatforms,
+    },
+  }, null, 2));
+}
+
 export async function generateProject(rawOptions, cwd = process.cwd()) {
   const config = normalizeOptions(rawOptions, cwd);
   if (config.dryRun) return { config, plan: describePlan(config), created: false };
@@ -162,6 +181,7 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
   await writeText(path.join(config.destination, "tools/.gitkeep"), "");
   await createWorkspaceFiles(config.destination, config, apps);
   await createProjectReadme(config.destination, config, apps);
+  await createManifest(config.destination, config, apps);
   await replaceInFile(path.join(config.destination, "infra/env/.env.example"), [
     ["PROJECT_SLUG=change-me", `PROJECT_SLUG=${config.slug}`],
     ["COMPOSE_PROJECT_NAME=change-me", `COMPOSE_PROJECT_NAME=${config.slug}`],

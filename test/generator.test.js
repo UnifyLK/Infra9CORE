@@ -36,7 +36,7 @@ test("always creates the project structure contract", async () => {
       ".editorconfig", ".gitattributes", ".gitignore", ".nvmrc",
       "LICENSE", "Makefile", "README.md", "infra/docker/docker-compose.yml",
       "infra/caddy/Caddyfile.example", "supabase/functions/main/index.ts",
-      "tools/validate.sh",
+      "tools/validate.sh", ".infra9core/manifest.json",
     ]) {
       assert.ok((await readFile(path.join(destination, file))).length > 0);
     }
@@ -62,13 +62,18 @@ test("creates an isolated multi-stack repository", async () => {
     assert.match(await readFile(path.join(destination, "README.md"), "utf8"), /Acme Platform/);
     assert.equal(
       JSON.parse(await readFile(path.join(destination, "package.json"), "utf8")).engines.node,
-      ">=24.0.0",
+      ">=24 <25",
     );
     assert.deepEqual(
       JSON.parse(await readFile(path.join(destination, "turbo.json"), "utf8")).globalEnv,
       ["CARGO_TARGET_DIR"],
     );
     assert.match(await readFile(path.join(destination, "infra/env/.env.example"), "utf8"), /PROJECT_SLUG=acme-platform/);
+    const manifest = JSON.parse(await readFile(path.join(destination, ".infra9core/manifest.json"), "utf8"));
+    assert.equal(manifest.schemaVersion, 1);
+    assert.equal(manifest.generator.package, "@unifyit/create-infra9core");
+    assert.equal(manifest.project.organizationId, "com.acme");
+    assert.deepEqual(manifest.project.apps, ["sveltekit", "flutter", "python", "go", "rust", "tauri", "custom"]);
     assert.match(await readFile(path.join(destination, "apps/api-go/go.mod"), "utf8"), /example\.invalid\/acme-platform-api-go/);
     assert.match(await readFile(path.join(destination, "apps/api-python/pyproject.toml"), "utf8"), /fastapi/);
     assert.match(await readFile(path.join(destination, "apps/desktop/src-tauri/tauri.conf.json"), "utf8"), /Acme Platform/);
