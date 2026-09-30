@@ -48,6 +48,9 @@ rollback path.
 Exit criterion: all checks pass and no generator template token remains in the
 generated project.
 
+The reproducible manual gate is `bash tools/release-validate.sh`. It is never
+triggered by a pull request or merge; run it before creating a release tag.
+
 ## Phase 1.1: Close automation coverage gaps
 
 1. Extend Generator CI with an all-recipe generation smoke test, including a
