@@ -5,6 +5,7 @@ repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 audit_root=$(mktemp -d "${TMPDIR:-/tmp}/infra9core-release.XXXXXX")
 audit_project="$audit_root/project"
 python_venv="$audit_root/python-venv"
+cargo_target_dir="${XDG_CACHE_HOME:-$HOME/.cache}/infra9core/cargo-target"
 
 cleanup() {
   find "$audit_root" -depth -delete 2>/dev/null || true
@@ -13,6 +14,8 @@ trap cleanup EXIT
 
 source "$HOME/.nvm/nvm.sh"
 nvm use 24 >/dev/null
+mkdir -p "$cargo_target_dir"
+export CARGO_TARGET_DIR="$cargo_target_dir"
 
 cd "$repo_root"
 npm ci

@@ -50,6 +50,8 @@ generated project.
 
 The reproducible manual gate is `bash tools/release-validate.sh`. It is never
 triggered by a pull request or merge; run it before creating a release tag.
+Its dedicated Cargo cache is retained between runs, while each generated audit
+project remains disposable.
 
 ## Phase 1.1: Close automation coverage gaps
 
