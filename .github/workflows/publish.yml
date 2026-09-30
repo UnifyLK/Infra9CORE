@@ -21,12 +21,12 @@ jobs:
     environment: npm-production
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}
           fetch-depth: 0
       - name: Use Node.js 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
@@ -39,7 +39,8 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref }}
         run: |
-          test "$RELEASE_TAG" = "v$(node -p \"require('./package.json').version\")"
+          package_version="$(node -p "require('./package.json').version")"
+          test "$RELEASE_TAG" = "v$package_version"
           git fetch origin main --depth=1
           git merge-base --is-ancestor HEAD origin/main
       - name: Publish with provenance
