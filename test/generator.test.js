@@ -36,7 +36,7 @@ test("always creates the project structure contract", async () => {
       ".editorconfig", ".gitattributes", ".gitignore", ".nvmrc",
       "LICENSE", "Makefile", "README.md", "infra/docker/docker-compose.yml",
       "infra/caddy/Caddyfile.example", "supabase/functions/main/index.ts",
-      "tools/validate.sh", ".infra9core/manifest.json",
+      "tools/validate.sh", ".infra9core/manifest.json", "infra/images/manifest.json",
     ]) {
       assert.ok((await readFile(path.join(destination, file))).length > 0);
     }

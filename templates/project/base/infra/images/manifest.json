@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Production image approval inventory. Update this alongside infra/env/.env.",
+  "images": [
+    { "environmentVariable": "SUPABASE_POSTGRES_IMAGE", "source": "supabase/postgres", "digest": "CHANGE_ME_SHA256", "signatureVerifiedAt": "CHANGE_ME" },
+    { "environmentVariable": "SUPABASE_GOTRUE_IMAGE", "source": "supabase/gotrue", "digest": "CHANGE_ME_SHA256", "signatureVerifiedAt": "CHANGE_ME" },
+    { "environmentVariable": "SUPABASE_POSTGREST_IMAGE", "source": "postgrest/postgrest", "digest": "CHANGE_ME_SHA256", "signatureVerifiedAt": "CHANGE_ME" },
+    { "environmentVariable": "SUPABASE_REALTIME_IMAGE", "source": "supabase/realtime", "digest": "CHANGE_ME_SHA256", "signatureVerifiedAt": "CHANGE_ME" },
+    { "environmentVariable": "SUPABASE_STORAGE_IMAGE", "source": "supabase/storage-api", "digest": "CHANGE_ME_SHA256", "signatureVerifiedAt": "CHANGE_ME" },
+    { "environmentVariable": "SUPABASE_IMGPROXY_IMAGE", "source": "darthsim/imgproxy", "digest": "CHANGE_ME_SHA256", "signatureVerifiedAt": "CHANGE_ME" },
+    { "environmentVariable": "SUPABASE_META_IMAGE", "source": "supabase/postgres-meta", "digest": "CHANGE_ME_SHA256", "signatureVerifiedAt": "CHANGE_ME" },
+    { "environmentVariable": "SUPABASE_EDGE_RUNTIME_IMAGE", "source": "supabase/edge-runtime", "digest": "CHANGE_ME_SHA256", "signatureVerifiedAt": "CHANGE_ME" },
+    { "environmentVariable": "SUPABASE_KONG_IMAGE", "source": "kong", "digest": "CHANGE_ME_SHA256", "signatureVerifiedAt": "CHANGE_ME" },
+    { "environmentVariable": "SUPABASE_STUDIO_IMAGE", "source": "supabase/studio", "digest": "CHANGE_ME_SHA256", "signatureVerifiedAt": "CHANGE_ME" }
+  ]
+}
