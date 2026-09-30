@@ -18,8 +18,17 @@ mkdir -p "$cargo_target_dir"
 export CARGO_TARGET_DIR="$cargo_target_dir"
 
 cd "$repo_root"
+for command_name in git npm corepack python3 go cargo flutter file rg; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    echo "Required release-validation command is unavailable: $command_name" >&2
+    exit 1
+  }
+done
+git diff --quiet || { echo "Working tree has unstaged changes." >&2; exit 1; }
+git diff --cached --quiet || { echo "Working tree has staged changes." >&2; exit 1; }
 npm ci
 npm run validate
+npm audit --omit=dev --audit-level=high
 
 node ./bin/create-infra9core.js "$audit_project" \
   --name "Infra9CORE Release Audit" \
