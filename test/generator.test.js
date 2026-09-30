@@ -56,7 +56,7 @@ test("creates an isolated multi-stack repository", async () => {
       destination, projectName: "Acme Platform",
       apps: ["sveltekit", "flutter", "python", "go", "rust", "tauri", "custom"],
       features: ["ci"], packageManager: "pnpm",
-      git: false, install: false, scaffoldSdks: false,
+      git: false, install: false, scaffoldSdks: false, organizationId: "com.acme",
     });
     assert.equal(result.created, true);
     assert.match(await readFile(path.join(destination, "README.md"), "utf8"), /Acme Platform/);
@@ -68,6 +68,16 @@ test("creates an isolated multi-stack repository", async () => {
     assert.match(await readFile(path.join(destination, "apps/api-go/go.mod"), "utf8"), /example\.invalid\/acme-platform-api-go/);
     assert.match(await readFile(path.join(destination, "apps/api-python/pyproject.toml"), "utf8"), /fastapi/);
     assert.match(await readFile(path.join(destination, "apps/desktop/src-tauri/tauri.conf.json"), "utf8"), /Acme Platform/);
+    assert.match(
+      await readFile(path.join(destination, "apps/desktop/src-tauri/tauri.conf.json"), "utf8"),
+      /com\.acme\.acmeplatformdesktop/,
+    );
+    assert.doesNotMatch(
+      await readFile(path.join(destination, "apps/mobile/README.md"), "utf8"),
+      /\{\{[A-Z_]+\}\}/,
+    );
+    const icon = await readFile(path.join(destination, "apps/desktop/src-tauri/icons/icon.png"));
+    assert.deepEqual([...icon.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
     assert.match(
       await readFile(path.join(destination, "docs/adr/0001-product-agnostic-infrastructure-baseline.md"), "utf8"),
       /product-agnostic/i,

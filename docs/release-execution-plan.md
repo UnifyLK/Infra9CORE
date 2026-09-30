@@ -22,7 +22,7 @@ rollback path.
 | npm publisher identity | Not authenticated on the release workstation | Confirm `unifyit` organization ownership and configure CI publishing authority. |
 | npm package name | Unclaimed | Reserve it by publishing the validated first release. |
 | GitHub release environment | `npm-production` does not exist | Create it, require authorized reviewers, and scope publishing credentials to it. |
-| `main` protection | Not configured | Require pull-request review and passing Generator CI before tag creation. |
+| `main` protection | Not configured | Restrict direct pushes and tag/release creation; release validation is explicit, not per-merge. |
 | Release source integrity | Workflow validates tag/version and ancestry | Keep tag-driven releases only; do not publish arbitrary commits. |
 
 ## Phase 1: Confirm the release candidate
@@ -57,8 +57,8 @@ generated project.
    runner generation.
 3. Add recipe tests where a template currently only compiles: a Svelte test
    script, health-route tests for Go and Rust, and a meaningful Tauri test.
-4. Keep full native compilation out of every small pull request only if the
-   release workflow and a required scheduled or release gate execute it.
+4. Keep full native compilation out of pull-request and merge automation. Run it
+   as an explicit release-candidate gate before creating a release tag.
 
 Exit criterion: the release candidate has a repeatable all-stack validation
 record, not only generator unit-test evidence.
@@ -67,9 +67,10 @@ record, not only generator unit-test evidence.
 
 1. Confirm the `unifyit` npm organization owns or can create
    `@unifyit/create-infra9core`.
-2. Configure branch protection for `main`: require pull requests, require the
-   Generator CI check, restrict direct pushes, and limit tag/release creation to
-   release maintainers.
+2. Configure branch protection for `main`: restrict direct pushes and limit
+   tag/release creation to release maintainers. Do not require a workflow check
+   for ordinary pull requests or merges; release validation is performed
+   explicitly before tagging.
 3. In the npm package settings, configure GitHub Actions trusted publishing for
    `UnifyLK/Infra9CORE` and the `Publish package` workflow. This is the preferred
    option because it uses short-lived identity tokens.
