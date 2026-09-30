@@ -1,0 +1,17 @@
+name: Feature request
+description: Propose a product-agnostic recipe, infrastructure capability, or generator improvement.
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and intended users
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Generated-project compatibility and operational impact
+    validations:
+      required: true
