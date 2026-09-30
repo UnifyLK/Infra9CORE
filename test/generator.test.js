@@ -64,6 +64,10 @@ test("creates an isolated multi-stack repository", async () => {
       JSON.parse(await readFile(path.join(destination, "package.json"), "utf8")).engines.node,
       ">=24.0.0",
     );
+    assert.deepEqual(
+      JSON.parse(await readFile(path.join(destination, "turbo.json"), "utf8")).globalEnv,
+      ["CARGO_TARGET_DIR"],
+    );
     assert.match(await readFile(path.join(destination, "infra/env/.env.example"), "utf8"), /PROJECT_SLUG=acme-platform/);
     assert.match(await readFile(path.join(destination, "apps/api-go/go.mod"), "utf8"), /example\.invalid\/acme-platform-api-go/);
     assert.match(await readFile(path.join(destination, "apps/api-python/pyproject.toml"), "utf8"), /fastapi/);

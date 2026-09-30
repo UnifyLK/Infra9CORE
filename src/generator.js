@@ -117,6 +117,7 @@ async function createWorkspaceFiles(root, config, apps) {
   if (apps.some(({ type }) => ["sveltekit", "tauri"].includes(type))) {
     await writeText(path.join(root, "turbo.json"), JSON.stringify({
       $schema: "https://turbo.build/schema.json",
+      globalEnv: ["CARGO_TARGET_DIR"],
       tasks: {
         build: { dependsOn: ["^build"], outputs: ["dist/**", "build/**", ".svelte-kit/**"] },
         dev: { cache: false, persistent: true },
