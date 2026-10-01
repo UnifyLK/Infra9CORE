@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -14,6 +14,23 @@ test("doctor accepts a fresh generated project", async () => {
     const result = await inspectProject(destination);
     assert.equal(result.ok, true);
     assert.equal(result.manifest.project.slug, "doctor-project");
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("doctor rejects malformed manifest metadata", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-doctor-invalid-"));
+  const destination = path.join(parent, "project");
+  try {
+    await generateProject({ destination, projectName: "Doctor Project", apps: ["go"], features: [], packageManager: "npm", git: false });
+    const target = path.join(destination, ".infra9core", "manifest.json");
+    const manifest = JSON.parse(await readFile(target, "utf8"));
+    manifest.project.appDirectories.go = "../outside";
+    await writeFile(target, JSON.stringify(manifest));
+    const result = await inspectProject(destination);
+    assert.equal(result.ok, false);
+    assert.ok(result.findings.some((finding) => finding.includes("application directory is invalid")));
   } finally {
     await rm(parent, { recursive: true, force: true });
   }

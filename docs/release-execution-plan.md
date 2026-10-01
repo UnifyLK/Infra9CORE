@@ -11,7 +11,7 @@ rollback path.
 - Package: `@unifyit/create-infra9core`
 - Bootstrap version: `0.1.0`, published interactively on 2026-09-30
 - Registry visibility: public
-- Runtime requirement: Node.js 24 or newer
+- Runtime requirement: Node.js 24.x only (`>=24 <25`)
 - Release source: protected `main` branch of `UnifyLK/Infra9CORE`
 - Publishing path: the `Publish package` GitHub Actions workflow
 
@@ -124,8 +124,8 @@ expected version and provenance, and the release workflow is green.
 
 ## Failure handling
 
-- Before npm publication: delete or correct the GitHub draft/release tag. If a
-  public tag must be replaced, create a new versioned tag rather than moving it.
+- Before npm publication: correct an unpushed local tag or delete a draft release.
+  Never move or delete a pushed/public tag; create a new versioned tag instead.
 - After npm publication: do not overwrite the release. Publish a patched version
   and deprecate the faulty version with a clear replacement message if needed.
 - Workflow credential failure: correct the protected environment configuration;

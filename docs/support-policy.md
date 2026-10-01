@@ -18,9 +18,10 @@
 
 ## Generated-project ownership
 
-Infra9CORE owns only files declared by the generated manifest and never owns
-application code under `apps/`, secrets, lockfiles, build output, backups, or
-runtime volumes. `create-infra9core doctor <path>` is read-only.
+Manifest schema v1 records project identity and selected recipes; it does not
+claim ownership of generated files. Infra9CORE never overwrites application code
+under `apps/`, secrets, lockfiles, build output, backups, or runtime volumes.
+`create-infra9core doctor <path>` and `update --check` are read-only.
 
 ## Deprecation
 

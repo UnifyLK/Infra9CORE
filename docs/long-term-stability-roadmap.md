@@ -23,7 +23,7 @@ repositories over years while preserving manual validation for ordinary changes.
 
 1. Restrict Infra9CORE itself to Node `>=24 <25` and keep `.nvmrc` on the
    supported Node 24 line.
-2. Generate a machine-readable `.infra9core.json` manifest containing the npm
+2. Generate a machine-readable `.infra9core/manifest.json` containing the npm
    package name, generator version, template-contract version, generation date,
    selected recipes, overlays, package manager, and project identity metadata.
 3. Add a compatibility policy describing supported Node, operating-system, and
