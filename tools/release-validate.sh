@@ -12,8 +12,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-source "$HOME/.nvm/nvm.sh"
-nvm use 24 >/dev/null
+if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+  source "$HOME/.nvm/nvm.sh"
+  nvm use 24 >/dev/null
+fi
+[[ "$(node --version)" == v24.* ]] || {
+  echo "Infra9CORE release validation requires Node.js 24.x." >&2
+  exit 1
+}
 mkdir -p "$cargo_target_dir"
 export CARGO_TARGET_DIR="$cargo_target_dir"
 
@@ -24,8 +30,7 @@ for command_name in git npm corepack python3 go cargo flutter file rg; do
     exit 1
   }
 done
-git diff --quiet || { echo "Working tree has unstaged changes." >&2; exit 1; }
-git diff --cached --quiet || { echo "Working tree has staged changes." >&2; exit 1; }
+[[ -z "$(git status --porcelain)" ]] || { echo "Working tree is not clean." >&2; exit 1; }
 npm ci
 npm run validate
 npm audit --omit=dev --audit-level=high
@@ -44,7 +49,7 @@ if rg -n '\{\{[A-Z_]+\}\}' "$audit_project"; then
   exit 1
 fi
 
-file "$audit_project/apps/desktop/src-tauri/icons/icon.png"
+file "$audit_project/apps/desktop/src-tauri/icons/icon.png" | grep -q 'PNG image data'
 corepack pnpm --dir "$audit_project" install --frozen-lockfile=false
 corepack pnpm --dir "$audit_project" lint
 corepack pnpm --dir "$audit_project" typecheck
