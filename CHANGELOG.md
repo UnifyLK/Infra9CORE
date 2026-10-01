@@ -5,6 +5,15 @@ All notable changes to Infra9CORE are documented here. The project follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-01
+
+### Fixed
+
+- Declare the selected npm, pnpm, Yarn, or Bun version in every generated
+  JavaScript workspace so Turborepo can execute root scripts.
+- Correct the Python recipe's `httpx` development dependency.
+- Clarify dependency-lockfile ownership in generated project READMEs.
+
 ## [0.1.0] - 2026-09-30
 
 ### Added

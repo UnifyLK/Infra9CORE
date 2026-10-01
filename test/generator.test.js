@@ -3,7 +3,8 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { generateProject } from "../src/generator.js";
+import { PACKAGE_MANAGER_VERSIONS } from "../src/constants.js";
+import { describePlan, generateProject } from "../src/generator.js";
 
 test("dry run does not create a destination", async () => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-dry-"));
@@ -46,6 +47,59 @@ test("always creates the project structure contract", async () => {
   } finally {
     await rm(parent, { recursive: true, force: true });
   }
+});
+
+test("declares the selected package manager for every JavaScript workspace", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-package-managers-"));
+  try {
+    for (const packageManager of Object.keys(PACKAGE_MANAGER_VERSIONS)) {
+      const destination = path.join(parent, packageManager);
+      await generateProject({
+        destination,
+        projectName: `${packageManager} workspace`,
+        apps: ["sveltekit"],
+        features: [],
+        packageManager,
+        git: false,
+      });
+      const packageJson = JSON.parse(await readFile(path.join(destination, "package.json"), "utf8"));
+      assert.equal(packageJson.packageManager, `${packageManager}@${PACKAGE_MANAGER_VERSIONS[packageManager]}`);
+      assert.equal(Boolean(packageJson.workspaces), packageManager !== "pnpm");
+    }
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("records all supported Flutter platforms without requiring the Flutter SDK", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-flutter-platforms-"));
+  const destination = path.join(parent, "mobile");
+  try {
+    await generateProject({
+      destination,
+      projectName: "Platform Matrix",
+      apps: ["flutter", "custom"],
+      features: [],
+      packageManager: "pnpm",
+      flutterPlatforms: ["android", "ios", "web", "linux", "macos", "windows"],
+      scaffoldSdks: false,
+      git: false,
+    });
+    const manifest = JSON.parse(await readFile(path.join(destination, ".infra9core/manifest.json"), "utf8"));
+    assert.deepEqual(manifest.project.flutterPlatforms, ["android", "ios", "web", "linux", "macos", "windows"]);
+    await readFile(path.join(destination, "apps", "custom", "README.md"), "utf8");
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("plan describes optional overlays rather than baseline infrastructure", () => {
+  const plan = describePlan({
+    projectName: "Base", destination: "/tmp/base", apps: [], features: [], packageManager: "pnpm",
+    organizationId: "com.example", git: false, install: false,
+  });
+  assert.match(plan, /Optional overlays: none/);
+  assert.doesNotMatch(plan, /Infrastructure: none/);
 });
 
 test("creates an isolated multi-stack repository", async () => {
