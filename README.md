@@ -50,8 +50,8 @@ Use `--dry-run` to inspect the plan and `--yes` to accept defaults. Run
 
 ## Development
 
-Infra9CORE requires Node.js 24 or newer. The repository's `.nvmrc` pins the
-development runtime to Node 24.
+Infra9CORE requires Node.js 24.x (`>=24 <25`). The repository's `.nvmrc` pins
+the development runtime to Node 24.
 
 ```bash
 nvm use
@@ -78,3 +78,11 @@ Generated repositories keep domain logic pure and integrations behind
 infrastructure adapters. They require RLS for every application table, reversible
 migrations, contract-first APIs, structured traceable logs, private signed
 production images, and a 70/20/10 unit/integration/e2e testing target.
+
+## Project policies
+
+- [Support policy](docs/support-policy.md)
+- [Security policy](SECURITY.md)
+- [Contribution guide](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
+- [Long-term stability roadmap](docs/long-term-stability-roadmap.md)

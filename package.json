@@ -1,6 +1,6 @@
 {
   "name": "@unifyit/create-infra9core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Interactive, production-minded multi-stack monorepo generator",
   "type": "module",
   "bin": {
@@ -19,7 +19,7 @@
     "validate": "npm test && npm run test:package"
   },
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=24 <25"
   },
   "publishConfig": {
     "access": "public",

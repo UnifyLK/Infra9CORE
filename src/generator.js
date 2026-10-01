@@ -1,7 +1,10 @@
 import { chmod, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { APP_TYPES, DEFAULTS, FEATURES, FLUTTER_PLATFORMS, PACKAGE_MANAGERS } from "./constants.js";
+import {
+  APP_TYPES, DEFAULTS, FEATURES, FLUTTER_PLATFORMS, PACKAGE_MANAGERS,
+  PACKAGE_MANAGER_VERSIONS,
+} from "./constants.js";
 import { createApplications } from "./app-recipes.js";
 import { assertDestination, copyPath, replaceInFile, writeText } from "./files.js";
 import { runCommand } from "./process.js";
@@ -65,7 +68,7 @@ export function describePlan(config) {
     `Project:        ${config.projectName}`,
     `Destination:    ${config.destination}`,
     `Applications:   ${config.apps.join(", ") || "none"}`,
-    `Infrastructure: ${config.features.join(", ") || "none"}`,
+    `Optional overlays: ${config.features.join(", ") || "none"}`,
     `Package manager:${config.packageManager}`,
     `Organization ID:${config.organizationId}`,
     `Initialize Git: ${config.git ? "yes" : "no"}`,
@@ -94,8 +97,8 @@ function generatedPackage(config, apps) {
     name: config.slug,
     version: "0.0.0",
     private: true,
-    engines: { node: ">=24.0.0" },
-    ...(config.packageManager === "pnpm" ? { packageManager: "pnpm@10.15.1" } : {}),
+    engines: { node: ">=24 <25" },
+    packageManager: `${config.packageManager}@${PACKAGE_MANAGER_VERSIONS[config.packageManager]}`,
     ...(config.packageManager !== "pnpm" ? { workspaces: ["apps/*", "packages/*"] } : {}),
     scripts: hasJavaScript ? {
       build: "turbo run build",
@@ -132,7 +135,26 @@ async function createWorkspaceFiles(root, config, apps) {
 async function createProjectReadme(root, config, apps) {
   const appList = apps.map(({ type, name }) => `- \`apps/${name}\`: ${type}`).join("\n") || "- No application recipes selected";
   const overlays = config.features.map((feature) => `\`${feature}\``).join(", ") || "none";
-  await writeText(path.join(root, "README.md"), `# ${config.projectName}\n\nGenerated with [Infra9CORE](https://github.com/UnifyLK/Infra9CORE).\n\n## Applications\n\n${appList}\n\n## Infrastructure\n\nCore capabilities: Docker Compose, self-hosted Supabase, native Caddy, migrations, backup/restore, and observability.\n\nOptional overlays: ${overlays}.\n\nProject identity, domains, ports, credentials, registry locations, and deployment targets belong in environment configuration. Never commit secrets.\n\n## Start\n\n\`\`\`bash\nmake env\n# Replace every CHANGE_ME value in infra/env/.env\nmake doctor\nmake up\nmake migrate\n\`\`\`\n`);
+  await writeText(path.join(root, "README.md"), `# ${config.projectName}\n\nGenerated with [Infra9CORE](https://github.com/UnifyLK/Infra9CORE).\n\n## Applications\n\n${appList}\n\n## Infrastructure\n\nCore capabilities: Docker Compose, self-hosted Supabase, native Caddy, migrations, backup/restore, and observability.\n\nOptional overlays: ${overlays}.\n\nProject identity, domains, ports, credentials, registry locations, and deployment targets belong in environment configuration. Never commit secrets.\n\n## Dependency bootstrap\n\nThis project pins ${config.packageManager} in \`package.json\`. Install dependencies with:\n\n\`\`\`bash\n${config.packageManager} install\n\`\`\`\n\nCommit the resulting lockfiles (for example \`package-lock.json\`, \`pnpm-lock.yaml\`, \`yarn.lock\`, \`bun.lock\`, \`Cargo.lock\`, and \`pubspec.lock\`) after reviewing them. The generator deliberately does not ship pre-resolved lockfiles because dependency resolution belongs to the generated project and its selected platforms.\n\n## Start\n\n\`\`\`bash\nmake env\n# Replace every CHANGE_ME value in infra/env/.env\nmake doctor\nmake up\nmake migrate\n\`\`\`\n`);
+}
+
+async function createManifest(root, config, apps) {
+  const version = await packageVersion();
+  const appDirectories = Object.fromEntries(apps.map(({ type, name }) => [type, name]));
+  await writeText(path.join(root, ".infra9core", "manifest.json"), JSON.stringify({
+    schemaVersion: 1,
+    templateContractVersion: 1,
+    generator: { package: "@unifyit/create-infra9core", version },
+    project: {
+      slug: config.slug,
+      apps: config.apps,
+      appDirectories,
+      features: config.features,
+      packageManager: config.packageManager,
+      organizationId: config.organizationId,
+      flutterPlatforms: config.flutterPlatforms,
+    },
+  }, null, 2));
 }
 
 export async function generateProject(rawOptions, cwd = process.cwd()) {
@@ -162,6 +184,7 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
   await writeText(path.join(config.destination, "tools/.gitkeep"), "");
   await createWorkspaceFiles(config.destination, config, apps);
   await createProjectReadme(config.destination, config, apps);
+  await createManifest(config.destination, config, apps);
   await replaceInFile(path.join(config.destination, "infra/env/.env.example"), [
     ["PROJECT_SLUG=change-me", `PROJECT_SLUG=${config.slug}`],
     ["COMPOSE_PROJECT_NAME=change-me", `COMPOSE_PROJECT_NAME=${config.slug}`],

@@ -12,14 +12,28 @@ cleanup() {
 }
 trap cleanup EXIT
 
-source "$HOME/.nvm/nvm.sh"
-nvm use 24 >/dev/null
+if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+  source "$HOME/.nvm/nvm.sh"
+  nvm use 24 >/dev/null
+fi
+[[ "$(node --version)" == v24.* ]] || {
+  echo "Infra9CORE release validation requires Node.js 24.x." >&2
+  exit 1
+}
 mkdir -p "$cargo_target_dir"
 export CARGO_TARGET_DIR="$cargo_target_dir"
 
 cd "$repo_root"
+for command_name in git npm corepack python3 go cargo flutter file rg; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    echo "Required release-validation command is unavailable: $command_name" >&2
+    exit 1
+  }
+done
+[[ -z "$(git status --porcelain)" ]] || { echo "Working tree is not clean." >&2; exit 1; }
 npm ci
 npm run validate
+npm audit --omit=dev --audit-level=high
 
 node ./bin/create-infra9core.js "$audit_project" \
   --name "Infra9CORE Release Audit" \
@@ -27,7 +41,7 @@ node ./bin/create-infra9core.js "$audit_project" \
   --features ci \
   --package-manager pnpm \
   --organization-id com.unifyit \
-  --flutter-platforms linux,web \
+  --flutter-platforms android,linux,web \
   --yes --no-git
 
 if rg -n '\{\{[A-Z_]+\}\}' "$audit_project"; then
@@ -35,7 +49,7 @@ if rg -n '\{\{[A-Z_]+\}\}' "$audit_project"; then
   exit 1
 fi
 
-file "$audit_project/apps/desktop/src-tauri/icons/icon.png"
+file "$audit_project/apps/desktop/src-tauri/icons/icon.png" | grep -q 'PNG image data'
 corepack pnpm --dir "$audit_project" install --frozen-lockfile=false
 corepack pnpm --dir "$audit_project" lint
 corepack pnpm --dir "$audit_project" typecheck
@@ -56,6 +70,8 @@ cargo check --manifest-path "$audit_project/apps/api-rust/Cargo.toml"
   flutter pub get
   flutter analyze
   flutter test
+  flutter build apk --debug
+  test -s build/app/outputs/flutter-apk/app-debug.apk
 )
 
 echo "Infra9CORE release-candidate validation passed."

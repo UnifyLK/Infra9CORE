@@ -1,0 +1,64 @@
+import { lstat, readFile } from "node:fs/promises";
+import path from "node:path";
+import { APP_DEFAULT_NAMES, APP_TYPES, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
+
+const requiredDirectories = ["apps", "docs", "infra", "packages", "shared", "supabase", "tools"];
+
+async function isDirectory(target) {
+  try {
+    const entry = await lstat(target);
+    return entry.isDirectory() && !entry.isSymbolicLink();
+  } catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+function isStringArray(value, allowed) {
+  return Array.isArray(value) && value.every((item) => typeof item === "string" && allowed.includes(item)) && new Set(value).size === value.length;
+}
+
+function validateManifest(manifest, findings) {
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) return findings.push("manifest root must be an object");
+  if (manifest.schemaVersion !== 1) findings.push(`unsupported manifest schema: ${manifest.schemaVersion}`);
+  if (manifest.templateContractVersion !== 1) findings.push(`unsupported template contract: ${manifest.templateContractVersion}`);
+  if (manifest.generator?.package !== "@unifyit/create-infra9core") findings.push("manifest generator package is invalid");
+  if (typeof manifest.generator?.version !== "string" || !manifest.generator.version) findings.push("manifest generator version is invalid");
+  const project = manifest.project;
+  if (!project || typeof project !== "object" || Array.isArray(project)) return findings.push("manifest project metadata is invalid");
+  if (!isStringArray(project.apps, APP_TYPES)) findings.push("manifest application recipes are invalid");
+  if (!isStringArray(project.features, FEATURES)) findings.push("manifest features are invalid");
+  if (!PACKAGE_MANAGERS.includes(project.packageManager)) findings.push("manifest package manager is invalid");
+  if (!project.appDirectories || typeof project.appDirectories !== "object" || Array.isArray(project.appDirectories)) {
+    findings.push("manifest application directories are invalid");
+    return;
+  }
+  for (const app of project.apps ?? []) {
+    if (project.appDirectories[app] !== APP_DEFAULT_NAMES[app]) findings.push(`manifest application directory is invalid: ${app}`);
+  }
+}
+
+export async function inspectProject(projectPath) {
+  const root = path.resolve(projectPath);
+  const findings = [];
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(path.join(root, ".infra9core", "manifest.json"), "utf8"));
+  } catch (error) {
+    findings.push(`manifest unavailable: ${error.code === "ENOENT" ? "missing" : "invalid JSON"}`);
+    return { root, manifest: null, findings, ok: false };
+  }
+  validateManifest(manifest, findings);
+  for (const directory of requiredDirectories) {
+    if (!(await isDirectory(path.join(root, directory)))) findings.push(`required directory missing or invalid: ${directory}`);
+  }
+  for (const app of manifest.project?.apps ?? []) {
+    const directory = manifest.project.appDirectories?.[app];
+    if (!directory || !(await isDirectory(path.join(root, "apps", APP_DEFAULT_NAMES[app])))) {
+      findings.push(`selected app directory missing: ${app}`);
+    }
+  }
+  const major = Number(process.versions.node.split(".", 1)[0]);
+  if (major !== 24) findings.push(`generated project requires Node.js 24.x; found ${process.versions.node}`);
+  return { root, manifest, findings, ok: findings.length === 0 };
+}
