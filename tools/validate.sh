@@ -13,6 +13,7 @@ node_major="$(node --version | sed -E 's/^v([0-9]+).*/\1/')"
 for file in templates/project/base/infra/scripts/*.sh; do
   bash -n "${file}"
 done
+bash -n tools/release-validate.sh tools/release-publish.sh
 sh -n templates/project/base/infra/supabase/volumes/api/kong-entrypoint.sh
 
 docker compose \

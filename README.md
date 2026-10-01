@@ -61,18 +61,22 @@ node ./bin/create-infra9core.js demo --apps python,go --no-git
 ```
 
 Publishing is performed by the `Publish package` GitHub Actions workflow, which
-runs when a GitHub release is published (or by manual dispatch). Before the first
-release, configure the `npm-production` environment with either an npm trusted
-publisher for this repository or an `NPM_TOKEN` secret with package publish access.
-The workflow publishes a public scoped package with npm provenance after validating
-the package.
+runs when a GitHub release is published (or by manual dispatch). npm trusted
+publishing is configured for the `npm-production` environment, so the workflow
+uses GitHub OIDC and publishes provenance without a long-lived npm token.
 
-For a deliberate local release only, npm organization access and two-factor
-authentication are required:
+After a reviewed release branch is merged, update `package.json` and
+`CHANGELOG.md`, check out an up-to-date local `main`, then run:
 
 ```bash
-npm publish --access public
+make release CONFIRM_RELEASE=1
 ```
+
+This guarded command runs the full multi-stack release gate, verifies that the
+version is unpublished, creates and pushes the matching annotated tag, publishes
+the GitHub Release, waits for the publish workflow, and confirms npm exposes the
+new version. It refuses dirty, stale, non-`main`, existing-tag, or already-published
+release attempts.
 
 Generated repositories keep domain logic pure and integrations behind
 infrastructure adapters. They require RLS for every application table, reversible
