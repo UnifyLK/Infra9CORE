@@ -83,5 +83,6 @@ production images, and a 70/20/10 unit/integration/e2e testing target.
 
 - [Support policy](docs/support-policy.md)
 - [Security policy](SECURITY.md)
+- [Contribution guide](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 - [Long-term stability roadmap](docs/long-term-stability-roadmap.md)
