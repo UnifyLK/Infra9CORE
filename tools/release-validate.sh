@@ -41,7 +41,7 @@ node ./bin/create-infra9core.js "$audit_project" \
   --features ci \
   --package-manager pnpm \
   --organization-id com.unifyit \
-  --flutter-platforms linux,web \
+  --flutter-platforms android,linux,web \
   --yes --no-git
 
 if rg -n '\{\{[A-Z_]+\}\}' "$audit_project"; then
@@ -70,6 +70,8 @@ cargo check --manifest-path "$audit_project/apps/api-rust/Cargo.toml"
   flutter pub get
   flutter analyze
   flutter test
+  flutter build apk --debug
+  test -s build/app/outputs/flutter-apk/app-debug.apk
 )
 
 echo "Infra9CORE release-candidate validation passed."
