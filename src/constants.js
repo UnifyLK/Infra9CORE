@@ -18,7 +18,7 @@ export const PACKAGE_MANAGER_VERSIONS = Object.freeze({
   pnpm: "10.15.1",
   npm: "11.19.0",
   yarn: "4.18.0",
-  bun: "1.2.21",
+  bun: "1.4.2",
 });
 export const FLUTTER_PLATFORMS = ["android", "ios", "web", "linux", "macos", "windows"];
 
