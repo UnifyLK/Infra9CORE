@@ -7,6 +7,11 @@ All notable changes to Infra9CORE are documented here. The project follows
 
 ### Added
 
+- Expanded public documentation covering the generator's ownership model,
+  first-run flow, daily operations, agent guidance, production expectations,
+  and release lifecycle; added Unify IT Solutions attribution to the package
+  documentation and metadata without branding generated projects.
+
 - Generated projects now include a non-secret first-run configuration record,
   `make infra9core`, and a coding-agent first-run brief. The guided command
   previews and renders managed environment-template and native-Caddy files

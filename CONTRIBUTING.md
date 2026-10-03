@@ -1,5 +1,9 @@
 # Contributing to Infra9CORE
 
+Infra9CORE is an open-source project maintained by
+[Unify IT Solutions](https://unify.lk). Contributions improve the public
+generator, never a generated product's business logic or brand.
+
 ## Runtime and validation
 
 Use Node.js 24.x only. Run the fast generator checks before committing:

@@ -1,5 +1,9 @@
 # Infra9CORE contributor documentation
 
+Infra9CORE is built and maintained by [Unify IT Solutions](https://unify.lk).
+These documents govern the public generator; they do not add Unify branding to
+projects generated from it.
+
 This directory documents the generator itself. Files destined for generated
 repositories belong under `templates/project/`, never here.
 
