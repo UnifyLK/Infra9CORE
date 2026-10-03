@@ -40,6 +40,7 @@ test("always creates the project structure contract", async () => {
     for (const file of [
       ".editorconfig", ".gitattributes", ".gitignore", ".nvmrc",
       "LICENSE", "Makefile", "README.md", "infra/docker/docker-compose.yml",
+      "infra/docker/docker-compose.apps.yml",
       "infra/caddy/Caddyfile.example", "supabase/functions/main/index.ts",
       "tools/validate.sh", ".infra9core/manifest.json", "infra/images/manifest.json",
       ".infra9core/config.json", "tools/infra9core-configure.mjs",
@@ -67,12 +68,25 @@ test("first-run configuration renders only managed non-secret files", async () =
     assert.equal(config.project.slug, "configured");
     assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /# Managed by Infra9CORE/);
     assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /configured\.localhost/);
+    assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /127\.0\.0\.1:3100/);
     assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /RLS/);
     assert.match(await readFile(path.join(destination, "infra/env/.env.example"), "utf8"), /PUBLIC_APP_URL=http:\/\/configured\.localhost/);
     await assert.rejects(() => readFile(path.join(destination, "infra/env/.env")), { code: "ENOENT" });
   } finally {
     await rm(parent, { recursive: true, force: true });
   }
+});
+
+test("generates Docker-owned runtime services for server recipes", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-runtime-services-"));
+  const destination = path.join(parent, "services");
+  try {
+    await generateProject({ destination, projectName: "Services", apps: ["sveltekit", "python", "go", "rust", "flutter", "tauri"], features: [], packageManager: "npm", git: false, scaffoldSdks: false });
+    const compose = await readFile(path.join(destination, "infra/docker/docker-compose.apps.yml"), "utf8");
+    for (const service of ["web", "api-python", "api-go", "api-rust"]) assert.match(compose, new RegExp(`\\n  ${service}:`));
+    for (const dockerfile of ["web", "api-python", "api-go", "api-rust"]) await readFile(path.join(destination, "apps", dockerfile, "Dockerfile"), "utf8");
+    await assert.rejects(() => readFile(path.join(destination, "apps", "mobile", "Dockerfile")), { code: "ENOENT" });
+  } finally { await rm(parent, { recursive: true, force: true }); }
 });
 
 test("environment setup prompts for and writes every required local value", async () => {

@@ -47,6 +47,9 @@ function validateFirstRunConfig(config, findings) {
   for (const key of ["environment", "appDomain", "studioDomain", "tlsEmail", "publicAppUrl", "supabasePublicUrl", "imageRegistry"]) {
     if (typeof deployment[key] !== "string" || !deployment[key]) findings.push(`first-run deployment field is invalid: ${key}`);
   }
+  if (!Number.isInteger(deployment.appPort) || deployment.appPort < 1024 || deployment.appPort > 65535) {
+    findings.push("first-run deployment field is invalid: appPort");
+  }
 }
 
 export async function inspectProject(projectPath) {

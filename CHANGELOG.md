@@ -11,6 +11,9 @@ All notable changes to Infra9CORE are documented here. The project follows
   `make infra9core`, and a coding-agent first-run brief. The guided command
   previews and renders managed environment-template and native-Caddy files
   without creating or overwriting local secrets.
+- SvelteKit, Python, Go, and Rust recipes now include Dockerfiles and generated
+  application-service Compose overlays. Their ports bind only to loopback for
+  native Caddy on Ubuntu/WSL.
 
 ## [0.1.1] - 2026-10-01
 

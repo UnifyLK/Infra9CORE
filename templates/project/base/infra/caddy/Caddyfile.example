@@ -17,9 +17,7 @@
 		reverse_proxy 127.0.0.1:{$SUPABASE_API_PORT}
 	}
 
-	root * {$APP_STATIC_ROOT}
-	try_files {path} /index.html
-	file_server
+	reverse_proxy 127.0.0.1:{$APP_PORT}
 	log {
 		output file /var/log/caddy/app-access.json {
 			roll_size 100MiB

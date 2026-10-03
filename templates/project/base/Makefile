@@ -1,9 +1,9 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-COMPOSE := docker compose --env-file infra/env/.env -f infra/docker/docker-compose.yml
+COMPOSE := docker compose --env-file infra/env/.env -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.apps.yml
 
-.PHONY: help infra9core env doctor validate config up down restart ps logs migrate rollback backup restore clean
+.PHONY: help infra9core env doctor validate config up down restart ps logs migrate rollback backup restore build clean
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -25,6 +25,9 @@ config: ## Validate and render the Docker Compose configuration
 
 up: ## Start the infrastructure stack
 	@infra/scripts/compose.sh up --detach --remove-orphans
+
+build: ## Build every selected containerized application service
+	@infra/scripts/compose.sh build
 
 down: ## Stop the infrastructure stack
 	@infra/scripts/compose.sh down

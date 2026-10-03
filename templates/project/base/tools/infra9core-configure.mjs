@@ -21,6 +21,7 @@ function renderCaddy(source, config) {
     .replaceAll("{$STUDIO_DOMAIN}", config.deployment.studioDomain)
     .replaceAll("{$SUPABASE_API_PORT}", String(config.deployment.supabaseApiPort))
     .replaceAll("{$SUPABASE_STUDIO_PORT}", String(config.deployment.supabaseStudioPort))
+    .replaceAll("{$APP_PORT}", String(config.deployment.appPort))
     .replaceAll("{$APP_STATIC_ROOT}", config.deployment.appStaticRoot)}`;
 }
 
