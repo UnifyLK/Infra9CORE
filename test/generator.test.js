@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { execFile, spawnSync } from "node:child_process";
+import { promisify } from "node:util";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { PACKAGE_MANAGER_VERSIONS } from "../src/constants.js";
 import { describePlan, generateProject } from "../src/generator.js";
+
+const execute = promisify(execFile);
 
 test("dry run does not create a destination", async () => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-dry-"));
@@ -34,16 +38,74 @@ test("always creates the project structure contract", async () => {
       assert.ok((await readdir(path.join(destination, directory))).length >= 0);
     }
     for (const file of [
-      ".editorconfig", ".gitattributes", ".gitignore", ".nvmrc",
+      ".editorconfig", ".gitattributes", ".gitignore", ".nvmrc", "AGENTS.md",
       "LICENSE", "Makefile", "README.md", "infra/docker/docker-compose.yml",
+      "infra/docker/docker-compose.apps.yml",
       "infra/caddy/Caddyfile.example", "supabase/functions/main/index.ts",
       "tools/validate.sh", ".infra9core/manifest.json", "infra/images/manifest.json",
+      ".infra9core/config.json", "tools/infra9core-configure.mjs",
     ]) {
       assert.ok((await readFile(path.join(destination, file))).length > 0);
     }
     await assert.rejects(() => readdir(path.join(destination, "src")), { code: "ENOENT" });
     await assert.rejects(() => readdir(path.join(destination, "test")), { code: "ENOENT" });
     await assert.rejects(() => readdir(path.join(destination, "templates")), { code: "ENOENT" });
+    assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /Repository ownership contract/);
+    assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /Supabase placement is a strict split/);
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("first-run configuration renders only managed non-secret files", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-first-run-"));
+  const destination = path.join(parent, "configured");
+  try {
+    await generateProject({
+      destination, projectName: "Configured", apps: ["sveltekit"], features: [],
+      packageManager: "npm", git: false,
+    });
+    await execute(process.execPath, ["tools/infra9core-configure.mjs", "--yes"], { cwd: destination });
+    const config = JSON.parse(await readFile(path.join(destination, ".infra9core/config.json"), "utf8"));
+    assert.equal(config.project.slug, "configured");
+    assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /# Managed by Infra9CORE/);
+    assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /configured\.localhost/);
+    assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /127\.0\.0\.1:3100/);
+    assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /RLS/);
+    assert.match(await readFile(path.join(destination, "infra/env/.env.example"), "utf8"), /PUBLIC_APP_URL=http:\/\/configured\.localhost/);
+    await assert.rejects(() => readFile(path.join(destination, "infra/env/.env")), { code: "ENOENT" });
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("generates Docker-owned runtime services for server recipes", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-runtime-services-"));
+  const destination = path.join(parent, "services");
+  try {
+    await generateProject({ destination, projectName: "Services", apps: ["sveltekit", "python", "go", "rust", "flutter", "tauri"], features: [], packageManager: "npm", git: false, scaffoldSdks: false });
+    const compose = await readFile(path.join(destination, "infra/docker/docker-compose.apps.yml"), "utf8");
+    assert.match(await readFile(path.join(destination, "infra/scripts/lib.sh"), "utf8"), /docker-compose\.apps\.yml/);
+    for (const service of ["web", "api-python", "api-go", "api-rust"]) assert.match(compose, new RegExp(`\\n  ${service}:`));
+    for (const dockerfile of ["web", "api-python", "api-go", "api-rust"]) await readFile(path.join(destination, "apps", dockerfile, "Dockerfile"), "utf8");
+    await assert.rejects(() => readFile(path.join(destination, "apps", "mobile", "Dockerfile")), { code: "ENOENT" });
+  } finally { await rm(parent, { recursive: true, force: true }); }
+});
+
+test("environment setup prompts for and writes every required local value", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-env-wizard-"));
+  const destination = path.join(parent, "configured");
+  try {
+    await generateProject({ destination, projectName: "Configured", apps: [], features: [], packageManager: "npm", git: false });
+    const values = ["dbpass", "jwt-secret-long-enough", "anon-key", "service-key", "dashboard-user", "dashboard-pass", "smtp.example.test", "smtp-user", "smtp-pass"];
+    const result = spawnSync("bash", ["infra/scripts/env-init.sh"], {
+      cwd: destination, input: `${values.join("\n")}\n`, encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const env = await readFile(path.join(destination, "infra/env/.env"), "utf8");
+    assert.match(env, /POSTGRES_PASSWORD=dbpass/);
+    assert.match(env, /SMTP_HOST=smtp\.example\.test/);
+    assert.doesNotMatch(env, /CHANGE_ME/);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }

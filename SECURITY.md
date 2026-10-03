@@ -1,5 +1,7 @@
 # Security policy
 
+Infra9CORE is maintained by [Unify IT Solutions](https://unify.lk).
+
 ## Reporting a vulnerability
 
 Do not open a public issue for a suspected vulnerability. Use GitHub's private

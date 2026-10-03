@@ -21,7 +21,7 @@ async function renderDirectory(directory, variables) {
       await renderDirectory(target, variables);
       continue;
     }
-    if (!textExtensions.has(path.extname(entry.name))) continue;
+    if (!textExtensions.has(path.extname(entry.name)) && entry.name !== "Dockerfile") continue;
     let content = await readFile(target, "utf8");
     for (const [token, value] of Object.entries(variables)) {
       content = content.replaceAll(`{{${token}}}`, value);

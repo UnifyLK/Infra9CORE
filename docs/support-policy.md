@@ -1,5 +1,9 @@
 # Infra9CORE support policy
 
+Infra9CORE is maintained by [Unify IT Solutions](https://unify.lk). Report
+generator defects through the repository's issue tracker; report vulnerabilities
+through the private route in [SECURITY.md](../SECURITY.md).
+
 ## Compatibility
 
 - Generator runtime: Node.js 24.x only (`>=24 <25`).

@@ -1,87 +1,176 @@
+<p align="center">
+  <img src="docs/assets/unify-logo-banner.svg" width="360" alt="Built with Unify IT Solutions">
+</p>
+
 # Infra9CORE
 
-Infra9CORE is a product-agnostic, multi-stack monorepo generator published as
-`@unifyit/create-infra9core`.
+Infra9CORE is a public, product-agnostic generator for production-minded,
+multi-stack monorepos. It gives developers and AI coding agents the same safe
+starting structure, operational rules, and lifecycle commands without copying a
+previous product's domain, branding, secrets, or business logic.
 
 ```bash
-npx @unifyit/create-infra9core@latest
+npx @unifyit/create-infra9core@latest my-product
 ```
 
-It creates a production-minded repository with selectable application stacks and
-an invariant Supabase, Docker, native-Caddy, migration, observability, ADR, and
-runbook baseline. CI is available as an optional overlay.
+It requires Node.js 24 (`>=24 <25`).
 
-## Repository separation
+Built and maintained by [Unify IT Solutions](https://unify.lk), a product studio
+helping teams move from idea to first customers. Infra9CORE is an open
+foundation: projects generated from it remain entirely yours.
 
-- `src/` contains only the Infra9CORE generator implementation.
-- `templates/project/base/` contains the invariant generated-project skeleton.
-- `templates/project/features/` contains optional overlays such as CI.
-- `templates/apps/` contains selectable application stacks.
-- `test/` validates the CLI and its generated output.
+## What it creates
 
-Every generated project receives these top-level boundaries, even when an
-optional feature or application stack is not selected: `apps/`, `docs/`,
-`infra/`, `packages/`, `shared/`, `supabase/`, and `tools/`.
+Every generated project has a stable ownership contract:
 
-## Supported application recipes
+```text
+apps/       deployable product applications
+packages/   reusable application packages
+shared/     pure domain contracts and utilities
+infra/      Docker Compose, native Caddy, environment templates, scripts, backups
+supabase/   product functions, migrations, rollbacks, and database assets
+tools/      repository automation and validation
+docs/       ADRs, API contracts, architecture, and runbooks
+```
 
-- SvelteKit web application
-- Flutter mobile application
-- Python API or worker
-- Go API or worker
-- Rust API or worker
-- Tauri desktop application
-- Empty custom application boundary
+The root `Makefile` is the operational interface. The generated root `AGENTS.md`
+is the permanent instruction set for humans and coding agents: it defines folder
+ownership, Docker/Caddy boundaries, secret handling, RLS, migration, and release
+rules.
 
-The generator never imports product names, domains, ports, credentials, branding,
-or business logic from existing projects.
+The Supabase split is deliberate: root `supabase/` contains product-owned Edge
+Functions, migrations, and rollbacks; `infra/supabase/volumes/` contains only
+self-hosted Kong/API and database-bootstrap runtime internals.
 
-## Non-interactive usage
+## Why this structure exists
+
+Real projects become difficult to operate when application code, database
+history, Docker files, Caddy rules, scripts, and temporary agent-generated files
+accumulate without ownership boundaries. Infra9CORE makes those boundaries part
+of the generated contract so a new service, migration, Dockerfile, or document
+has an obvious home.
+
+Its production-shaped local model is:
+
+```text
+Internet → native Caddy on Ubuntu/WSL → 127.0.0.1 loopback ports → Docker services
+```
+
+Docker owns server runtime services and self-hosted Supabase. Native Caddy owns
+public TLS, host routing, security headers, and reverse proxying. Supabase,
+Studio, databases, workers, and debug ports are never public by default.
+
+## Supported recipes
+
+Choose any combination of SvelteKit, Flutter, Python, Go, Rust, Tauri, and a
+custom empty application boundary. SvelteKit, Python, Go, and Rust receive
+Dockerfiles and generated Compose services. Flutter and Tauri are client
+applications, so their device, emulator, and desktop packaging work remains
+platform-specific rather than a long-running server container.
+
+## Create a project
+
+Interactive use:
+
+```bash
+npx @unifyit/create-infra9core@latest my-product
+```
+
+Non-interactive use, suitable for an agent or scripted bootstrap:
 
 ```bash
 npx @unifyit/create-infra9core@latest my-product \
   --apps sveltekit,flutter,python \
   --features ci \
-  --package-manager pnpm
+  --package-manager pnpm \
+  --organization-id com.example \
+  --yes
 ```
 
-Use `--dry-run` to inspect the plan and `--yes` to accept defaults. Run
-`create-infra9core --help` for every option.
+Use `--dry-run` to preview generation, `--no-git` to skip Git initialization,
+and `create-infra9core --help` for all options.
 
-## Development
+## First run: configure, then operate
 
-Infra9CORE requires Node.js 24.x (`>=24 <25`). The repository's `.nvmrc` pins
-the development runtime to Node 24.
+From the generated project:
+
+```bash
+make infra9core  # configure tracked, non-secret deployment identity
+make env         # create local-only secrets; prompts for required values
+make doctor      # verify tools, secrets, and Compose safety rules
+make config      # render and validate the Compose graph
+make build       # build selected Docker application services
+make up          # start Docker services
+make migrate     # apply product-owned forward migrations
+make ps          # inspect service status
+```
+
+`make infra9core` previews and then manages `.infra9core/config.json`,
+`infra/env/.env.example`, `infra/caddy/Caddyfile`, and
+`docs/infra9core/FIRST_RUN_AGENT_PROMPT.md`. It never reads, creates, or
+overwrites `infra/env/.env`. `make env` creates that local secret file only when
+absent, uses mode `0600`, and never replaces an existing file.
+
+## Daily operations
+
+```bash
+make logs SERVICE=web
+make restart
+make backup
+make restore BACKUP=/absolute/path/file.dump
+make rollback MIGRATION=001_example.sql
+make validate
+```
+
+`make clean` removes stopped containers and local build output but keeps Docker
+volumes and data. It is not a database reset command.
+
+## Agent guidance
+
+After generation, an AI coding agent should read `AGENTS.md`,
+`docs/infra9core/FIRST_RUN_AGENT_PROMPT.md`, the baseline ADR, OpenAPI contract,
+and relevant runbooks before changing structure or operations. Agents must use
+existing ownership boundaries, add ADRs for material decisions, keep domain logic
+independent of infrastructure adapters, use append-only migrations with
+rollback/forward recovery, enforce RLS, and avoid secrets in Git or logs.
+
+## Production expectations
+
+Infra9CORE is a foundation, not a complete product. It does not invent your
+domain model, API contract, RLS policies, provider integrations, public routing,
+DNS, credentials, or deployment approval. Before production, provide reviewed
+domain/ADR decisions, API and test evidence, private-registry images pinned by
+digest with scan/sign evidence, real secret management, restore rehearsal,
+observability, and an operator-approved Caddy/DNS change.
+
+## Maintainers and releases
+
+The generator itself is tested with Node 24:
 
 ```bash
 nvm use
-npm test
-npm run test:package
-node ./bin/create-infra9core.js demo --apps python,go --no-git
+npm run validate
+bash tools/release-validate.sh
 ```
 
-Publishing is performed by the `Publish package` GitHub Actions workflow, which
-runs when a GitHub release is published (or by manual dispatch). npm trusted
-publishing is configured for the `npm-production` environment, so the workflow
-uses GitHub OIDC and publishes provenance without a long-lived npm token.
+The release gate builds and health-checks generated Docker services, validates a
+generated native Caddyfile, and runs the all-stack SvelteKit, Tauri, Python, Go,
+Rust, Flutter, and Android checks. It does not deploy anything.
 
-After a reviewed release branch is merged, update `package.json` and
-`CHANGELOG.md`, check out an up-to-date local `main`, then run:
+For a new version, update `package.json` and `CHANGELOG.md`, merge reviewed work
+into `main`, then run:
 
 ```bash
 make release CONFIRM_RELEASE=1
 ```
 
-This guarded command runs the full multi-stack release gate, verifies that the
-version is unpublished, creates and pushes the matching annotated tag, publishes
-the GitHub Release, waits for the publish workflow, and confirms npm exposes the
-new version. It refuses dirty, stale, non-`main`, existing-tag, or already-published
-release attempts.
+This guarded command validates, tags, creates the GitHub Release, waits for
+trusted npm publishing, and confirms the published version. It refuses dirty,
+stale, non-`main`, already-tagged, or already-published releases.
 
-Generated repositories keep domain logic pure and integrations behind
-infrastructure adapters. They require RLS for every application table, reversible
-migrations, contract-first APIs, structured traceable logs, private signed
-production images, and a 70/20/10 unit/integration/e2e testing target.
+Before every release, complete the advisory
+[SarvaOps upstream reference review](docs/upstream-reference-review.md). SarvaOps
+is an evolving operational reference, never an Infra9CORE dependency.
 
 ## Project policies
 

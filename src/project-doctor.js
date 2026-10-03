@@ -3,6 +3,13 @@ import path from "node:path";
 import { APP_DEFAULT_NAMES, APP_TYPES, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
 
 const requiredDirectories = ["apps", "docs", "infra", "packages", "shared", "supabase", "tools"];
+const requiredSupabaseDirectories = [
+  "supabase/functions",
+  "supabase/migrations",
+  "supabase/rollbacks",
+  "infra/supabase/volumes/api",
+  "infra/supabase/volumes/db/init",
+];
 
 async function isDirectory(target) {
   try {
@@ -38,6 +45,20 @@ function validateManifest(manifest, findings) {
   }
 }
 
+function validateFirstRunConfig(config, findings) {
+  if (!config || typeof config !== "object" || Array.isArray(config)) return findings.push("first-run configuration must be an object");
+  if (config.schemaVersion !== 1) findings.push(`unsupported first-run configuration schema: ${config.schemaVersion}`);
+  if (typeof config.project?.slug !== "string" || !config.project.slug) findings.push("first-run project slug is invalid");
+  const deployment = config.deployment;
+  if (!deployment || typeof deployment !== "object" || Array.isArray(deployment)) return findings.push("first-run deployment metadata is invalid");
+  for (const key of ["environment", "appDomain", "studioDomain", "tlsEmail", "publicAppUrl", "supabasePublicUrl", "imageRegistry"]) {
+    if (typeof deployment[key] !== "string" || !deployment[key]) findings.push(`first-run deployment field is invalid: ${key}`);
+  }
+  if (!Number.isInteger(deployment.appPort) || deployment.appPort < 1024 || deployment.appPort > 65535) {
+    findings.push("first-run deployment field is invalid: appPort");
+  }
+}
+
 export async function inspectProject(projectPath) {
   const root = path.resolve(projectPath);
   const findings = [];
@@ -49,8 +70,19 @@ export async function inspectProject(projectPath) {
     return { root, manifest: null, findings, ok: false };
   }
   validateManifest(manifest, findings);
+  try {
+    validateFirstRunConfig(JSON.parse(await readFile(path.join(root, ".infra9core", "config.json"), "utf8")), findings);
+  } catch (error) {
+    findings.push(`first-run configuration unavailable: ${error.code === "ENOENT" ? "missing" : "invalid JSON"}`);
+  }
   for (const directory of requiredDirectories) {
     if (!(await isDirectory(path.join(root, directory)))) findings.push(`required directory missing or invalid: ${directory}`);
+  }
+  for (const directory of requiredSupabaseDirectories) {
+    if (!(await isDirectory(path.join(root, directory)))) findings.push(`required Supabase boundary missing or invalid: ${directory}`);
+  }
+  if (await isDirectory(path.join(root, "supabase/runtime"))) {
+    findings.push("prohibited Supabase runtime location: supabase/runtime; use infra/supabase/volumes");
   }
   for (const app of manifest.project?.apps ?? []) {
     const directory = manifest.project.appDirectories?.[app];

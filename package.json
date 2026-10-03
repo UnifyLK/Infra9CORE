@@ -1,6 +1,6 @@
 {
   "name": "@unifyit/create-infra9core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Interactive, production-minded multi-stack monorepo generator",
   "type": "module",
   "bin": {
@@ -11,7 +11,8 @@
     "src",
     "templates",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "docs/assets/unify-logo-banner.svg"
   ],
   "scripts": {
     "test": "node --test",
@@ -43,6 +44,6 @@
     "flutter",
     "tauri"
   ],
-  "author": "UnifyIT",
+  "author": "Unify IT Solutions Pvt Ltd (https://unify.lk)",
   "license": "MIT"
 }

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -14,6 +14,20 @@ test("doctor accepts a fresh generated project", async () => {
     const result = await inspectProject(destination);
     assert.equal(result.ok, true);
     assert.equal(result.manifest.project.slug, "doctor-project");
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("doctor enforces the Supabase product/runtime split", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-doctor-supabase-"));
+  const destination = path.join(parent, "project");
+  try {
+    await generateProject({ destination, projectName: "Doctor Project", apps: [], features: [], packageManager: "npm", git: false });
+    await mkdir(path.join(destination, "supabase", "runtime"), { recursive: true });
+    const result = await inspectProject(destination);
+    assert.equal(result.ok, false);
+    assert.ok(result.findings.some((finding) => finding.includes("prohibited Supabase runtime location")));
   } finally {
     await rm(parent, { recursive: true, force: true });
   }
