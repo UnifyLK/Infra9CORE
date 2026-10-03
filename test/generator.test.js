@@ -51,6 +51,7 @@ test("always creates the project structure contract", async () => {
     await assert.rejects(() => readdir(path.join(destination, "test")), { code: "ENOENT" });
     await assert.rejects(() => readdir(path.join(destination, "templates")), { code: "ENOENT" });
     assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /Repository ownership contract/);
+    assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /Supabase placement is a strict split/);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }

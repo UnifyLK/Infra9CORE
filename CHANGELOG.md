@@ -16,6 +16,9 @@ All notable changes to Infra9CORE are documented here. The project follows
   native Caddy on Ubuntu/WSL.
 - Generated projects now include a root `AGENTS.md` defining the monorepo
   ownership contract and safe operational boundaries for coding agents.
+- The generated agent contract now explicitly separates product-owned
+  `supabase/` functions/migrations/rollbacks from `infra/supabase/` runtime
+  volumes and Kong/database-bootstrap internals.
 
 ## [0.1.1] - 2026-10-01
 

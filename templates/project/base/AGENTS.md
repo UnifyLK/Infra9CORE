@@ -25,6 +25,18 @@ files, database migrations, or configuration files for convenience. First use
 an existing ownership boundary. An exception requires an ADR and documentation
 update before implementation.
 
+## Supabase placement is a strict split
+
+- `supabase/functions/`, `supabase/migrations/`, and `supabase/rollbacks/` are
+  product-owned application assets. Put Edge Functions, forward SQL migrations,
+  and matching rollback/recovery assets there only.
+- `infra/supabase/volumes/` is runtime-owned self-hosted Supabase internals.
+  It contains Kong/API configuration, database bootstrap files, and Compose
+  volume-mounted runtime assets only.
+- Never place product migrations, Edge Functions, domain SQL, or RLS policies
+  under `infra/supabase/`. Never place Kong templates, database-init internals,
+  or Docker runtime volume assets under root `supabase/`.
+
 ## Runtime and operations
 
 - Docker owns server runtime services. Bind published container ports to
