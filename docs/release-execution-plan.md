@@ -44,6 +44,10 @@ rollback path.
 6. Scan the generated project for unresolved `{{TOKEN}}` values and verify the
    copied Tauri icon is a valid binary PNG. This guards the text renderer from
    corrupting binary template assets.
+7. Complete the advisory [upstream reference review](upstream-reference-review.md):
+   review SarvaOps' current agent and Caddy operations guidance for reusable
+   principles, record the reviewed commit/date and each adoption decision. This
+   is not a dependency on SarvaOps and does not assume generated projects use it.
 
 Exit criterion: all checks pass and no generator template token remains in the
 generated project.

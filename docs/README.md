@@ -22,3 +22,4 @@ Generated repositories must always contain `apps`, `docs`, `infra`, `packages`,
 - [Release execution plan](release-execution-plan.md)
 - [Dependency and image maintenance policy](dependency-and-image-policy.md)
 - [Release recovery runbook](runbooks/release-recovery.md)
+- [Upstream reference review](upstream-reference-review.md)
