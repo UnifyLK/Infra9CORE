@@ -14,6 +14,8 @@ All notable changes to Infra9CORE are documented here. The project follows
 - SvelteKit, Python, Go, and Rust recipes now include Dockerfiles and generated
   application-service Compose overlays. Their ports bind only to loopback for
   native Caddy on Ubuntu/WSL.
+- Generated projects now include a root `AGENTS.md` defining the monorepo
+  ownership contract and safe operational boundaries for coding agents.
 
 ## [0.1.1] - 2026-10-01
 

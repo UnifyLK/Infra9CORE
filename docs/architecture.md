@@ -15,6 +15,11 @@ renderer to collect deployment identity, preview managed output, and render the
 environment template, native Caddyfile, and coding-agent brief. It never writes
 the local secret file and protects an unmanaged Caddyfile from replacement.
 
+Every generated repository includes a root `AGENTS.md`. It is the durable
+structural contract for human developers and coding agents: it assigns ownership
+to each top-level directory, prevents ungoverned root-level sprawl, and defines
+Docker, Caddy, secrets, migrations, RLS, and delivery guardrails.
+
 Server-capable recipes (SvelteKit, Python, Go, and Rust) include Dockerfiles.
 The generator renders `infra/docker/docker-compose.apps.yml` as an overlay on
 the Supabase Compose stack, publishing services only on `127.0.0.1`. Native

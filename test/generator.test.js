@@ -38,7 +38,7 @@ test("always creates the project structure contract", async () => {
       assert.ok((await readdir(path.join(destination, directory))).length >= 0);
     }
     for (const file of [
-      ".editorconfig", ".gitattributes", ".gitignore", ".nvmrc",
+      ".editorconfig", ".gitattributes", ".gitignore", ".nvmrc", "AGENTS.md",
       "LICENSE", "Makefile", "README.md", "infra/docker/docker-compose.yml",
       "infra/docker/docker-compose.apps.yml",
       "infra/caddy/Caddyfile.example", "supabase/functions/main/index.ts",
@@ -50,6 +50,7 @@ test("always creates the project structure contract", async () => {
     await assert.rejects(() => readdir(path.join(destination, "src")), { code: "ENOENT" });
     await assert.rejects(() => readdir(path.join(destination, "test")), { code: "ENOENT" });
     await assert.rejects(() => readdir(path.join(destination, "templates")), { code: "ENOENT" });
+    assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /Repository ownership contract/);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }

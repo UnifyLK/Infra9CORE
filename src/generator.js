@@ -17,6 +17,7 @@ const baseFiles = [
   ["gitignore", ".gitignore"],
   ["nvmrc", ".nvmrc"],
   ["LICENSE", "LICENSE"],
+  ["AGENTS.md", "AGENTS.md"],
   ["docs", "docs"],
   ["infra", "infra"],
   ["Makefile", "Makefile"],
