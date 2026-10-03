@@ -9,6 +9,12 @@ the base template, merges selected overlays, renders application templates, and
 optionally initializes Git and installs JavaScript dependencies. It never clones
 the Infra9CORE repository and never copies generator source into a new project.
 
+Generated projects also contain `.infra9core/config.json`, a committed non-secret
+deployment profile. Their `make infra9core` command runs the shipped Node 24
+renderer to collect deployment identity, preview managed output, and render the
+environment template, native Caddyfile, and coding-agent brief. It never writes
+the local secret file and protects an unmanaged Caddyfile from replacement.
+
 Template files use explicit tokens such as `{{PROJECT_NAME}}`,
 `{{PROJECT_SLUG}}`, and `{{PROJECT_SNAKE}}`. Application recipes select and render
 templates; they do not contain embedded application source code.

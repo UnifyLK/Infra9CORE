@@ -3,10 +3,13 @@ SHELL := /usr/bin/env bash
 
 COMPOSE := docker compose --env-file infra/env/.env -f infra/docker/docker-compose.yml
 
-.PHONY: help env doctor validate config up down restart ps logs migrate rollback backup restore clean
+.PHONY: help infra9core env doctor validate config up down restart ps logs migrate rollback backup restore clean
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+infra9core: ## Configure tracked infrastructure and generate the coding-agent brief
+	@node tools/infra9core-configure.mjs
 
 env: ## Create local environment configuration without overwriting it
 	@infra/scripts/env-init.sh

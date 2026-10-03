@@ -5,6 +5,13 @@ All notable changes to Infra9CORE are documented here. The project follows
 
 ## [Unreleased]
 
+### Added
+
+- Generated projects now include a non-secret first-run configuration record,
+  `make infra9core`, and a coding-agent first-run brief. The guided command
+  previews and renders managed environment-template and native-Caddy files
+  without creating or overwriting local secrets.
+
 ## [0.1.1] - 2026-10-01
 
 ### Fixed

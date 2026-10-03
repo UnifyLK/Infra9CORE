@@ -38,6 +38,17 @@ function validateManifest(manifest, findings) {
   }
 }
 
+function validateFirstRunConfig(config, findings) {
+  if (!config || typeof config !== "object" || Array.isArray(config)) return findings.push("first-run configuration must be an object");
+  if (config.schemaVersion !== 1) findings.push(`unsupported first-run configuration schema: ${config.schemaVersion}`);
+  if (typeof config.project?.slug !== "string" || !config.project.slug) findings.push("first-run project slug is invalid");
+  const deployment = config.deployment;
+  if (!deployment || typeof deployment !== "object" || Array.isArray(deployment)) return findings.push("first-run deployment metadata is invalid");
+  for (const key of ["environment", "appDomain", "studioDomain", "tlsEmail", "publicAppUrl", "supabasePublicUrl", "imageRegistry"]) {
+    if (typeof deployment[key] !== "string" || !deployment[key]) findings.push(`first-run deployment field is invalid: ${key}`);
+  }
+}
+
 export async function inspectProject(projectPath) {
   const root = path.resolve(projectPath);
   const findings = [];
@@ -49,6 +60,11 @@ export async function inspectProject(projectPath) {
     return { root, manifest: null, findings, ok: false };
   }
   validateManifest(manifest, findings);
+  try {
+    validateFirstRunConfig(JSON.parse(await readFile(path.join(root, ".infra9core", "config.json"), "utf8")), findings);
+  } catch (error) {
+    findings.push(`first-run configuration unavailable: ${error.code === "ENOENT" ? "missing" : "invalid JSON"}`);
+  }
   for (const directory of requiredDirectories) {
     if (!(await isDirectory(path.join(root, directory)))) findings.push(`required directory missing or invalid: ${directory}`);
   }

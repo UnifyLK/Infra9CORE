@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { PACKAGE_MANAGER_VERSIONS } from "../src/constants.js";
 import { describePlan, generateProject } from "../src/generator.js";
+
+const execute = promisify(execFile);
 
 test("dry run does not create a destination", async () => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-dry-"));
@@ -38,12 +42,34 @@ test("always creates the project structure contract", async () => {
       "LICENSE", "Makefile", "README.md", "infra/docker/docker-compose.yml",
       "infra/caddy/Caddyfile.example", "supabase/functions/main/index.ts",
       "tools/validate.sh", ".infra9core/manifest.json", "infra/images/manifest.json",
+      ".infra9core/config.json", "tools/infra9core-configure.mjs",
     ]) {
       assert.ok((await readFile(path.join(destination, file))).length > 0);
     }
     await assert.rejects(() => readdir(path.join(destination, "src")), { code: "ENOENT" });
     await assert.rejects(() => readdir(path.join(destination, "test")), { code: "ENOENT" });
     await assert.rejects(() => readdir(path.join(destination, "templates")), { code: "ENOENT" });
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("first-run configuration renders only managed non-secret files", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-first-run-"));
+  const destination = path.join(parent, "configured");
+  try {
+    await generateProject({
+      destination, projectName: "Configured", apps: ["sveltekit"], features: [],
+      packageManager: "npm", git: false,
+    });
+    await execute(process.execPath, ["tools/infra9core-configure.mjs", "--yes"], { cwd: destination });
+    const config = JSON.parse(await readFile(path.join(destination, ".infra9core/config.json"), "utf8"));
+    assert.equal(config.project.slug, "configured");
+    assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /# Managed by Infra9CORE/);
+    assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /configured\.localhost/);
+    assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /RLS/);
+    assert.match(await readFile(path.join(destination, "infra/env/.env.example"), "utf8"), /PUBLIC_APP_URL=http:\/\/configured\.localhost/);
+    await assert.rejects(() => readFile(path.join(destination, "infra/env/.env")), { code: "ENOENT" });
   } finally {
     await rm(parent, { recursive: true, force: true });
   }

@@ -29,7 +29,11 @@ test("packed package installs and generates a project through its consumer binar
       "--no-git",
     ]);
     await access(path.join(destination, ".infra9core", "manifest.json"));
+    await access(path.join(destination, ".infra9core", "config.json"));
     await access(path.join(destination, "apps", "api-go", "go.mod"));
+    await execFile(process.execPath, ["tools/infra9core-configure.mjs", "--yes"], { cwd: destination });
+    await access(path.join(destination, "infra", "caddy", "Caddyfile"));
+    await access(path.join(destination, "docs", "infra9core", "FIRST_RUN_AGENT_PROMPT.md"));
     const packageJson = JSON.parse(await readFile(path.join(destination, "package.json"), "utf8"));
     assert.equal(packageJson.packageManager, "npm@11.19.0");
     assert.ok(true);

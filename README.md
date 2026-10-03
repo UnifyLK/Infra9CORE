@@ -48,6 +48,23 @@ npx @unifyit/create-infra9core@latest my-product \
 Use `--dry-run` to inspect the plan and `--yes` to accept defaults. Run
 `create-infra9core --help` for every option.
 
+## Generated-project first run
+
+Every generated repository includes a committed, non-secret
+`.infra9core/config.json` plus an interactive first-run command:
+
+```bash
+make infra9core
+```
+
+The command asks for deployment identity, domains, TLS contact, public URLs, and
+the production image registry. It previews the files it manages before writing
+the project environment template, native Caddy configuration, and
+`docs/infra9core/FIRST_RUN_AGENT_PROMPT.md`. It never creates or overwrites
+`infra/env/.env`; local secrets stay local. Re-run it whenever the deployment
+identity changes. Existing unmanaged `infra/caddy/Caddyfile` files are protected
+unless the operator explicitly uses `--force-managed-files`.
+
 ## Development
 
 Infra9CORE requires Node.js 24.x (`>=24 <25`). The repository's `.nvmrc` pins

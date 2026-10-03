@@ -135,7 +135,7 @@ async function createWorkspaceFiles(root, config, apps) {
 async function createProjectReadme(root, config, apps) {
   const appList = apps.map(({ type, name }) => `- \`apps/${name}\`: ${type}`).join("\n") || "- No application recipes selected";
   const overlays = config.features.map((feature) => `\`${feature}\``).join(", ") || "none";
-  await writeText(path.join(root, "README.md"), `# ${config.projectName}\n\nGenerated with [Infra9CORE](https://github.com/UnifyLK/Infra9CORE).\n\n## Applications\n\n${appList}\n\n## Infrastructure\n\nCore capabilities: Docker Compose, self-hosted Supabase, native Caddy, migrations, backup/restore, and observability.\n\nOptional overlays: ${overlays}.\n\nProject identity, domains, ports, credentials, registry locations, and deployment targets belong in environment configuration. Never commit secrets.\n\n## Dependency bootstrap\n\nThis project pins ${config.packageManager} in \`package.json\`. Install dependencies with:\n\n\`\`\`bash\n${config.packageManager} install\n\`\`\`\n\nCommit the resulting lockfiles (for example \`package-lock.json\`, \`pnpm-lock.yaml\`, \`yarn.lock\`, \`bun.lock\`, \`Cargo.lock\`, and \`pubspec.lock\`) after reviewing them. The generator deliberately does not ship pre-resolved lockfiles because dependency resolution belongs to the generated project and its selected platforms.\n\n## Start\n\n\`\`\`bash\nmake env\n# Replace every CHANGE_ME value in infra/env/.env\nmake doctor\nmake up\nmake migrate\n\`\`\`\n`);
+  await writeText(path.join(root, "README.md"), `# ${config.projectName}\n\nGenerated with [Infra9CORE](https://github.com/UnifyLK/Infra9CORE).\n\n## Applications\n\n${appList}\n\n## Infrastructure\n\nCore capabilities: Docker Compose, self-hosted Supabase, native Caddy, migrations, backup/restore, and observability.\n\nOptional overlays: ${overlays}.\n\nProject identity, domains, ports, credentials, registry locations, and deployment targets belong in environment configuration. Never commit secrets.\n\n## First-run configuration\n\nRun \`make infra9core\` before starting services. It asks for non-secret deployment identity, previews its managed changes, and renders \`infra/env/.env.example\`, \`infra/caddy/Caddyfile\`, and \`docs/infra9core/FIRST_RUN_AGENT_PROMPT.md\`. The committed \`.infra9core/config.json\` is the non-secret configuration record; \`infra/env/.env\` remains local-only secret material.\n\n## Dependency bootstrap\n\nThis project pins ${config.packageManager} in \`package.json\`. Install dependencies with:\n\n\`\`\`bash\n${config.packageManager} install\n\`\`\`\n\nCommit the resulting lockfiles (for example \`package-lock.json\`, \`pnpm-lock.yaml\`, \`yarn.lock\`, \`bun.lock\`, \`Cargo.lock\`, and \`pubspec.lock\`) after reviewing them. The generator deliberately does not ship pre-resolved lockfiles because dependency resolution belongs to the generated project and its selected platforms.\n\n## Start\n\n\`\`\`bash\nmake infra9core\nmake env\n# Replace every CHANGE_ME value in infra/env/.env\nmake doctor\nmake up\nmake migrate\n\`\`\`\n`);
 }
 
 async function createManifest(root, config, apps) {
@@ -153,6 +153,28 @@ async function createManifest(root, config, apps) {
       packageManager: config.packageManager,
       organizationId: config.organizationId,
       flutterPlatforms: config.flutterPlatforms,
+    },
+  }, null, 2));
+}
+
+async function createFirstRunConfiguration(root, config) {
+  const publicAppUrl = config.apps.includes("sveltekit") ? `http://${config.slug}.localhost` : "http://localhost:3000";
+  await writeText(path.join(root, ".infra9core", "config.json"), JSON.stringify({
+    schemaVersion: 1,
+    project: { name: config.projectName, slug: config.slug, apps: config.apps },
+    deployment: {
+      environment: "development",
+      appDomain: `${config.slug}.localhost`,
+      studioDomain: `studio.${config.slug}.localhost`,
+      tlsEmail: "admin@example.invalid",
+      publicAppUrl,
+      supabasePublicUrl: "http://localhost:8000",
+      additionalRedirectUrls: "",
+      supabaseBindAddress: "127.0.0.1",
+      supabaseApiPort: 8000,
+      supabaseStudioPort: 3001,
+      appStaticRoot: "/var/www/app",
+      imageRegistry: "docker.io",
     },
   }, null, 2));
 }
@@ -185,11 +207,12 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
   await createWorkspaceFiles(config.destination, config, apps);
   await createProjectReadme(config.destination, config, apps);
   await createManifest(config.destination, config, apps);
+  await createFirstRunConfiguration(config.destination, config);
   await replaceInFile(path.join(config.destination, "infra/env/.env.example"), [
     ["PROJECT_SLUG=change-me", `PROJECT_SLUG=${config.slug}`],
     ["COMPOSE_PROJECT_NAME=change-me", `COMPOSE_PROJECT_NAME=${config.slug}`],
   ]);
-  for (const script of ["tools/validate.sh", "infra/supabase/volumes/api/kong-entrypoint.sh"]) {
+  for (const script of ["tools/validate.sh", "tools/infra9core-configure.mjs", "infra/supabase/volumes/api/kong-entrypoint.sh"]) {
     await chmod(path.join(config.destination, script), 0o755);
   }
   const scripts = await import("node:fs/promises").then(({ readdir }) => readdir(path.join(config.destination, "infra/scripts")));
