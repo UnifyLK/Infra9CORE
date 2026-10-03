@@ -5,6 +5,8 @@ All notable changes to Infra9CORE are documented here. The project follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-04
+
 ### Added
 
 - Expanded public documentation covering the generator's ownership model,
