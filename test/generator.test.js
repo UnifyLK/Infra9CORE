@@ -71,9 +71,38 @@ test("first-run configuration renders only managed non-secret files", async () =
     assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /# Managed by Infra9CORE/);
     assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /configured\.localhost/);
     assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /127\.0\.0\.1:3100/);
+    assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /auth\/v1/);
+    assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /127\.0\.0\.1:8000/);
     assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /RLS/);
     assert.match(await readFile(path.join(destination, "infra/env/.env.example"), "utf8"), /PUBLIC_APP_URL=http:\/\/configured\.localhost/);
     await assert.rejects(() => readFile(path.join(destination, "infra/env/.env")), { code: "ENOENT" });
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("private-bff first-run configuration keeps Kong and Studio out of Caddy", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-private-bff-"));
+  const destination = path.join(parent, "configured");
+  try {
+    await generateProject({
+      destination, projectName: "Configured", apps: ["sveltekit"], features: [],
+      packageManager: "npm", git: false,
+    });
+    const configPath = path.join(destination, ".infra9core/config.json");
+    const config = JSON.parse(await readFile(configPath, "utf8"));
+    config.deployment.gatewayExposureMode = "private-bff";
+    delete config.deployment.supabasePublicUrl;
+    await writeFile(configPath, JSON.stringify(config));
+    await execute(process.execPath, ["tools/infra9core-configure.mjs", "--yes"], { cwd: destination });
+    const caddy = await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8");
+    const env = await readFile(path.join(destination, "infra/env/.env.example"), "utf8");
+    assert.doesNotMatch(caddy, /auth\/v1|rest\/v1|realtime\/v1|storage\/v1|functions\/v1|studio\./);
+    assert.match(caddy, /127\.0\.0\.1:3100/);
+    assert.match(env, /GATEWAY_EXPOSURE_MODE=private-bff/);
+    assert.match(env, /SUPABASE_INTERNAL_URL=http:\/\/kong:8000/);
+    assert.match(env, /SUPABASE_PUBLIC_URL=http:\/\/configured\.localhost/);
+    assert.match(env, /API_EXTERNAL_URL=http:\/\/configured\.localhost/);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }

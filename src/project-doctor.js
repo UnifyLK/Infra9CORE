@@ -51,8 +51,14 @@ function validateFirstRunConfig(config, findings) {
   if (typeof config.project?.slug !== "string" || !config.project.slug) findings.push("first-run project slug is invalid");
   const deployment = config.deployment;
   if (!deployment || typeof deployment !== "object" || Array.isArray(deployment)) return findings.push("first-run deployment metadata is invalid");
-  for (const key of ["environment", "appDomain", "studioDomain", "tlsEmail", "publicAppUrl", "supabasePublicUrl", "imageRegistry"]) {
+  for (const key of ["environment", "appDomain", "studioDomain", "tlsEmail", "publicAppUrl", "supabaseInternalUrl", "imageRegistry"]) {
     if (typeof deployment[key] !== "string" || !deployment[key]) findings.push(`first-run deployment field is invalid: ${key}`);
+  }
+  if (!["private-bff", "public-supabase"].includes(deployment.gatewayExposureMode)) {
+    findings.push("first-run deployment gateway exposure mode is invalid");
+  }
+  if (deployment.gatewayExposureMode === "public-supabase" && (typeof deployment.supabasePublicUrl !== "string" || !deployment.supabasePublicUrl)) {
+    findings.push("first-run deployment field is invalid: supabasePublicUrl");
   }
   if (!Number.isInteger(deployment.appPort) || deployment.appPort < 1024 || deployment.appPort > 65535) {
     findings.push("first-run deployment field is invalid: appPort");
@@ -70,8 +76,10 @@ export async function inspectProject(projectPath) {
     return { root, manifest: null, findings, ok: false };
   }
   validateManifest(manifest, findings);
+  let firstRunConfig;
   try {
-    validateFirstRunConfig(JSON.parse(await readFile(path.join(root, ".infra9core", "config.json"), "utf8")), findings);
+    firstRunConfig = JSON.parse(await readFile(path.join(root, ".infra9core", "config.json"), "utf8"));
+    validateFirstRunConfig(firstRunConfig, findings);
   } catch (error) {
     findings.push(`first-run configuration unavailable: ${error.code === "ENOENT" ? "missing" : "invalid JSON"}`);
   }
@@ -83,6 +91,12 @@ export async function inspectProject(projectPath) {
   }
   if (await isDirectory(path.join(root, "supabase/runtime"))) {
     findings.push("prohibited Supabase runtime location: supabase/runtime; use infra/supabase/volumes");
+  }
+  if (firstRunConfig?.deployment?.gatewayExposureMode === "private-bff") {
+    const caddy = await readFile(path.join(root, "infra", "caddy", "Caddyfile"), "utf8").catch((error) => error.code === "ENOENT" ? null : Promise.reject(error));
+    if (caddy && /(?:auth|rest|realtime|storage|functions)\/v1|127\.0\.0\.1:(?:8000|3001)/.test(caddy)) {
+      findings.push("private-bff Caddyfile exposes a prohibited Supabase or Studio route");
+    }
   }
   for (const app of manifest.project?.apps ?? []) {
     const directory = manifest.project.appDirectories?.[app];

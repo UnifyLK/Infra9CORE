@@ -12,10 +12,7 @@
 		Referrer-Policy strict-origin-when-cross-origin
 	}
 
-	@supabase path /auth/v1/* /rest/v1/* /realtime/v1/* /storage/v1/* /functions/v1/*
-	handle @supabase {
-		reverse_proxy 127.0.0.1:{$SUPABASE_API_PORT}
-	}
+{$SUPABASE_GATEWAY_ROUTE}
 
 	reverse_proxy 127.0.0.1:{$APP_PORT}
 	log {
@@ -27,9 +24,4 @@
 	}
 }
 
-{$STUDIO_DOMAIN} {
-	basic_auth {
-		{$STUDIO_HTTP_USER} {$STUDIO_HTTP_PASSWORD_HASH}
-	}
-	reverse_proxy 127.0.0.1:{$SUPABASE_STUDIO_PORT}
-}
+{$SUPABASE_STUDIO_SITE}

@@ -41,8 +41,10 @@ update before implementation.
 
 - Docker owns server runtime services. Bind published container ports to
   `127.0.0.1`; native Caddy on Ubuntu/WSL is the only public ingress.
-- Do not expose Supabase, Studio, databases, or application debug ports directly
-  to the public network. Validate Caddy before any operator-approved reload.
+- `private-bff` gateway mode permits native Caddy to expose only application
+  routes; Kong, Supabase services, and Studio stay private. `public-supabase`
+  is the explicit exception for reviewed Supabase gateway routes. Validate Caddy
+  before any operator-approved reload.
 - Use `make infra9core`, `make env`, `make doctor`, `make build`, `make up`,
   `make migrate`, and `make validate` rather than ad-hoc lifecycle commands.
 - Never commit `.env` files, credentials, JWTs, password hashes, provider tokens,

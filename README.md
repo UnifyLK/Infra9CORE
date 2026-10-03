@@ -111,6 +111,10 @@ make ps          # inspect service status
 overwrites `infra/env/.env`. `make env` creates that local secret file only when
 absent, uses mode `0600`, and never replaces an existing file.
 
+First-run configuration explicitly selects gateway exposure. `public-supabase`
+keeps the reviewed Supabase Caddy routes; `private-bff` exposes only the
+application and uses Docker-internal `http://kong:8000` for Supabase access.
+
 ## Daily operations
 
 ```bash
