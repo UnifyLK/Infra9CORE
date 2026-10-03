@@ -75,7 +75,7 @@ fi
 file "$audit_project/apps/desktop/src-tauri/icons/icon.png" | grep -q 'PNG image data'
 "${audit_compose[@]}" config --quiet
 if command -v caddy >/dev/null 2>&1; then
-  STUDIO_HTTP_USER=release-audit STUDIO_HTTP_PASSWORD_HASH='$2a$14$abcdefghijklmnopqrstuvABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef' \
+  CADDY_LOG_PATH="$audit_root/caddy-access.json" STUDIO_HTTP_USER=release-audit STUDIO_HTTP_PASSWORD_HASH='$2a$14$abcdefghijklmnopqrstuvABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef' \
     caddy validate --config "$audit_project/infra/caddy/Caddyfile" --adapter caddyfile
 fi
 "${audit_compose[@]}" build web api-python api-go api-rust

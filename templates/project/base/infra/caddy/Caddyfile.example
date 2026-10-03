@@ -19,7 +19,7 @@
 
 	reverse_proxy 127.0.0.1:{$APP_PORT}
 	log {
-		output file /var/log/caddy/app-access.json {
+		output file {$CADDY_LOG_PATH} {
 			roll_size 100MiB
 			roll_keep 10
 		}
@@ -28,7 +28,7 @@
 }
 
 {$STUDIO_DOMAIN} {
-	basicauth {
+	basic_auth {
 		{$STUDIO_HTTP_USER} {$STUDIO_HTTP_PASSWORD_HASH}
 	}
 	reverse_proxy 127.0.0.1:{$SUPABASE_STUDIO_PORT}
