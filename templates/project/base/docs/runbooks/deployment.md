@@ -9,6 +9,11 @@
 - Private registry authentication configured with read-only credentials.
 - Images pinned by digest, vulnerability-scanned, and signature-verified.
 - Encrypted off-host backup destination configured and restore tested.
+- For a SarvaOps-managed host, choose the registered project number and use
+  `portAllocation.provider: sarvaops` in `.infra9core/config.json`. The
+  configurator derives the loopback web/db/Studio/API/Kong ports from the
+  SarvaOps `P-E-SS` contract; never copy container ports such as `3000` into
+  Caddy upstreams.
 
 ## First deployment
 

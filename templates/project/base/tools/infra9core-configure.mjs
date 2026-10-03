@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { createInterface } from "node:readline/promises";
+import { applySarvaOpsPortAllocation } from "./sarvaops-ports.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const configPath = path.join(root, ".infra9core", "config.json");
@@ -80,6 +81,7 @@ function renderEnv(source, config) {
     SUPABASE_BIND_ADDRESS: config.deployment.supabaseBindAddress,
     SUPABASE_API_PORT: config.deployment.supabaseApiPort,
     SUPABASE_STUDIO_PORT: config.deployment.supabaseStudioPort,
+    POSTGRES_PORT: config.deployment.postgresPort,
     IMAGE_REGISTRY: config.deployment.imageRegistry,
   };
   return Object.entries(values).reduce((result, [key, value]) => setEnv(result, key, String(value)), source);
@@ -97,15 +99,27 @@ async function askGatewayExposureMode(current, rl) {
   return value;
 }
 
+async function askPortAllocation(current, rl) {
+  const provider = await ask("Host port allocation (direct or sarvaops)", current?.provider ?? "direct", rl);
+  if (!["direct", "sarvaops"].includes(provider)) throw new Error("Host port allocation must be direct or sarvaops");
+  if (provider === "direct") return { provider };
+  const rawProjectNumber = await ask("SarvaOps project number", String(current?.projectNumber ?? ""), rl);
+  const projectNumber = Number(rawProjectNumber);
+  if (!Number.isInteger(projectNumber)) throw new Error("SarvaOps project number must be an integer");
+  return { provider, projectNumber };
+}
+
 async function main() {
   const config = JSON.parse(await readFile(configPath, "utf8"));
   // Configurations generated before gateway modes default to their original public behavior.
   config.deployment.gatewayExposureMode ??= "public-supabase";
   config.deployment.supabaseInternalUrl ??= "http://kong:8000";
   config.deployment.sarvaOpsImportHosts ??= [config.deployment.appDomain];
+  config.deployment.postgresPort ??= 5432;
   const rl = yes ? null : createInterface({ input: process.stdin, output: process.stdout });
   try {
     config.deployment.environment = await ask("Deployment environment", config.deployment.environment, rl);
+    config.deployment.portAllocation = await askPortAllocation(config.deployment.portAllocation, rl);
     config.deployment.appDomain = await ask("Application domain", config.deployment.appDomain, rl);
     config.deployment.studioDomain = await ask("Supabase Studio domain", config.deployment.studioDomain, rl);
     config.deployment.tlsEmail = await ask("TLS contact email", config.deployment.tlsEmail, rl);
@@ -116,6 +130,8 @@ async function main() {
     }
     config.deployment.imageRegistry = await ask("Private production image registry", config.deployment.imageRegistry, rl);
   } finally { rl?.close(); }
+
+  config.deployment = applySarvaOpsPortAllocation(config.deployment);
 
   const envPath = path.join(root, "infra/env/.env.example");
   const caddyExamplePath = path.join(root, "infra/caddy/Caddyfile.example");

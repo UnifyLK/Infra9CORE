@@ -1,6 +1,7 @@
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { APP_DEFAULT_NAMES, APP_TYPES, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
+import { deriveSarvaOpsPorts } from "./sarvaops-ports.js";
 
 const requiredDirectories = ["apps", "docs", "infra", "packages", "shared", "supabase", "tools"];
 const requiredSupabaseDirectories = [
@@ -62,6 +63,23 @@ function validateFirstRunConfig(config, findings) {
   }
   if (!Number.isInteger(deployment.appPort) || deployment.appPort < 1024 || deployment.appPort > 65535) {
     findings.push("first-run deployment field is invalid: appPort");
+  }
+  if (deployment.portAllocation?.provider === "sarvaops") {
+    try {
+      const ports = deriveSarvaOpsPorts(deployment.portAllocation.projectNumber, deployment.environment);
+      for (const [field, expected] of Object.entries({
+        appPort: ports.web,
+        postgresPort: ports.db,
+        supabaseStudioPort: ports.studio,
+        supabaseApiPort: ports.kong,
+      })) {
+        if (deployment[field] !== expected) findings.push(`SarvaOps port allocation is inconsistent: ${field}`);
+      }
+    } catch (error) {
+      findings.push(`SarvaOps port allocation is invalid: ${error.message}`);
+    }
+  } else if (deployment.portAllocation && deployment.portAllocation.provider !== "direct") {
+    findings.push("first-run deployment port allocation provider is invalid");
   }
 }
 
