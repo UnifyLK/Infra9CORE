@@ -19,6 +19,8 @@ All notable changes to Infra9CORE are documented here. The project follows
 - The generated agent contract now explicitly separates product-owned
   `supabase/` functions/migrations/rollbacks from `infra/supabase/` runtime
   volumes and Kong/database-bootstrap internals.
+- `create-infra9core doctor` now enforces that Supabase split and flags the
+  prohibited `supabase/runtime/` location.
 
 ## [0.1.1] - 2026-10-01
 

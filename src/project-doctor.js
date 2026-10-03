@@ -3,6 +3,13 @@ import path from "node:path";
 import { APP_DEFAULT_NAMES, APP_TYPES, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
 
 const requiredDirectories = ["apps", "docs", "infra", "packages", "shared", "supabase", "tools"];
+const requiredSupabaseDirectories = [
+  "supabase/functions",
+  "supabase/migrations",
+  "supabase/rollbacks",
+  "infra/supabase/volumes/api",
+  "infra/supabase/volumes/db/init",
+];
 
 async function isDirectory(target) {
   try {
@@ -70,6 +77,12 @@ export async function inspectProject(projectPath) {
   }
   for (const directory of requiredDirectories) {
     if (!(await isDirectory(path.join(root, directory)))) findings.push(`required directory missing or invalid: ${directory}`);
+  }
+  for (const directory of requiredSupabaseDirectories) {
+    if (!(await isDirectory(path.join(root, directory)))) findings.push(`required Supabase boundary missing or invalid: ${directory}`);
+  }
+  if (await isDirectory(path.join(root, "supabase/runtime"))) {
+    findings.push("prohibited Supabase runtime location: supabase/runtime; use infra/supabase/volumes");
   }
   for (const app of manifest.project?.apps ?? []) {
     const directory = manifest.project.appDirectories?.[app];
