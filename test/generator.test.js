@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { execFile } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { promisify } from "node:util";
 import os from "node:os";
 import path from "node:path";
@@ -70,6 +70,25 @@ test("first-run configuration renders only managed non-secret files", async () =
     assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /RLS/);
     assert.match(await readFile(path.join(destination, "infra/env/.env.example"), "utf8"), /PUBLIC_APP_URL=http:\/\/configured\.localhost/);
     await assert.rejects(() => readFile(path.join(destination, "infra/env/.env")), { code: "ENOENT" });
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("environment setup prompts for and writes every required local value", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-env-wizard-"));
+  const destination = path.join(parent, "configured");
+  try {
+    await generateProject({ destination, projectName: "Configured", apps: [], features: [], packageManager: "npm", git: false });
+    const values = ["dbpass", "jwt-secret-long-enough", "anon-key", "service-key", "dashboard-user", "dashboard-pass", "smtp.example.test", "smtp-user", "smtp-pass"];
+    const result = spawnSync("bash", ["infra/scripts/env-init.sh"], {
+      cwd: destination, input: `${values.join("\n")}\n`, encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const env = await readFile(path.join(destination, "infra/env/.env"), "utf8");
+    assert.match(env, /POSTGRES_PASSWORD=dbpass/);
+    assert.match(env, /SMTP_HOST=smtp\.example\.test/);
+    assert.doesNotMatch(env, /CHANGE_ME/);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }
