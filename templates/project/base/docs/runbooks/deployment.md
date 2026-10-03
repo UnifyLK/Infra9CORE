@@ -18,8 +18,15 @@
 3. Set `IMAGE_REGISTRY` to the approved private registry and use signed images.
 4. Run `make doctor` and `make config`.
 5. Run `make up`, `make migrate`, and `make ps`.
-6. Copy and adapt `infra/caddy/Caddyfile.example` under `/etc/caddy/`; validate
-   with `caddy validate` before reloading the Caddy service.
+6. Select the Caddy ownership model before changing the host:
+   - For a directly managed native Caddy host, render and adapt
+     `infra/caddy/Caddyfile.example` under `/etc/caddy/`, then validate with
+     `caddy validate` before reload.
+   - For SarvaOps-managed Caddy, import the generated
+     `infra/caddy/SarvaOps.import.caddy` through the SarvaOps import preview.
+     It contains only explicit single-host proxy and `www` redirect blocks;
+     it deliberately excludes global options, logging, wildcard tenancy, Kong,
+     and Studio. Review every importer warning before applying it.
 7. Probe application, API, authentication, storage, and database health.
 8. Confirm JSON logs include the edge request ID and application trace ID.
 

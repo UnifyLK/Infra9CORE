@@ -40,6 +40,21 @@ function renderCaddy(source, config) {
     .replaceAll("{$APP_STATIC_ROOT}", config.deployment.appStaticRoot)}`;
 }
 
+function renderSarvaOpsImport(config) {
+  const hosts = config.deployment.sarvaOpsImportHosts ?? [config.deployment.appDomain];
+  if (!Array.isArray(hosts) || hosts.length === 0) {
+    throw new Error("sarvaOpsImportHosts must contain at least one explicit hostname");
+  }
+  const normalizedHosts = [...new Set(hosts.map((host) => String(host).trim().toLowerCase()))];
+  for (const host of normalizedHosts) {
+    if (!/^(?=.{1,253}$)(?!-)[a-z0-9-]+(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(host)) {
+      throw new Error(`sarvaOpsImportHosts contains an invalid explicit hostname: ${host}`);
+    }
+  }
+  const port = config.deployment.appPort;
+  return `# Managed by Infra9CORE. Import this file through SarvaOps; do not use it as /etc/caddy/Caddyfile.\n# Each site is deliberately an explicit single-host proxy because the SarvaOps importer rejects multi-host and wildcard blocks.\n# Wildcard tenancy needs a separately reviewed SarvaOps capability; it is intentionally not represented here.\n\n${normalizedHosts.map((host) => `www.${host} {\n\tredir https://${host}{uri} permanent\n}\n\n${host} {\n\treverse_proxy 127.0.0.1:${port}\n}\n`).join("\n")}`;
+}
+
 function renderPrompt(config) {
   const apps = config.project.apps.length ? config.project.apps.map((app) => `- \`${app}\``).join("\n") : "- No application recipe was selected.";
   const gatewayContract = config.deployment.gatewayExposureMode === "private-bff"
@@ -87,6 +102,7 @@ async function main() {
   // Configurations generated before gateway modes default to their original public behavior.
   config.deployment.gatewayExposureMode ??= "public-supabase";
   config.deployment.supabaseInternalUrl ??= "http://kong:8000";
+  config.deployment.sarvaOpsImportHosts ??= [config.deployment.appDomain];
   const rl = yes ? null : createInterface({ input: process.stdin, output: process.stdout });
   try {
     config.deployment.environment = await ask("Deployment environment", config.deployment.environment, rl);
@@ -104,6 +120,7 @@ async function main() {
   const envPath = path.join(root, "infra/env/.env.example");
   const caddyExamplePath = path.join(root, "infra/caddy/Caddyfile.example");
   const caddyPath = path.join(root, "infra/caddy/Caddyfile");
+  const sarvaOpsImportPath = path.join(root, "infra/caddy/SarvaOps.import.caddy");
   const promptPath = path.join(root, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md");
   const existingCaddy = await readFile(caddyPath, "utf8").catch((error) => error.code === "ENOENT" ? null : Promise.reject(error));
   if (existingCaddy && !existingCaddy.startsWith("# Managed by Infra9CORE") && !force) {
@@ -113,6 +130,7 @@ async function main() {
     [configPath, `${JSON.stringify(config, null, 2)}\n`],
     [envPath, renderEnv(await readFile(envPath, "utf8"), config)],
     [caddyPath, renderCaddy(await readFile(caddyExamplePath, "utf8"), config)],
+    [sarvaOpsImportPath, renderSarvaOpsImport(config)],
     [promptPath, renderPrompt(config)],
   ];
   const changed = [];

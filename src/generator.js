@@ -182,6 +182,7 @@ async function createFirstRunConfiguration(root, config) {
     deployment: {
       environment: "development",
       appDomain: `${config.slug}.localhost`,
+      sarvaOpsImportHosts: [`${config.slug}.localhost`],
       studioDomain: `studio.${config.slug}.localhost`,
       tlsEmail: "admin@example.invalid",
       publicAppUrl,
