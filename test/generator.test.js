@@ -83,6 +83,7 @@ test("generates Docker-owned runtime services for server recipes", async () => {
   try {
     await generateProject({ destination, projectName: "Services", apps: ["sveltekit", "python", "go", "rust", "flutter", "tauri"], features: [], packageManager: "npm", git: false, scaffoldSdks: false });
     const compose = await readFile(path.join(destination, "infra/docker/docker-compose.apps.yml"), "utf8");
+    assert.match(await readFile(path.join(destination, "infra/scripts/lib.sh"), "utf8"), /docker-compose\.apps\.yml/);
     for (const service of ["web", "api-python", "api-go", "api-rust"]) assert.match(compose, new RegExp(`\\n  ${service}:`));
     for (const dockerfile of ["web", "api-python", "api-go", "api-rust"]) await readFile(path.join(destination, "apps", dockerfile, "Dockerfile"), "utf8");
     await assert.rejects(() => readFile(path.join(destination, "apps", "mobile", "Dockerfile")), { code: "ENOENT" });
