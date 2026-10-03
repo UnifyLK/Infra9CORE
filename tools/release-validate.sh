@@ -50,7 +50,7 @@ node "$audit_project/tools/infra9core-configure.mjs" --yes
 
 node --input-type=module - "$audit_project/infra/env/.env" <<'NODE'
 import { readFile, writeFile } from "node:fs/promises";
-const target = process.argv[1];
+const target = process.argv[2];
 let env = await readFile(target.replace(/\.env$/, ".env.example"), "utf8");
 const values = {
   POSTGRES_PASSWORD: "release_audit_database_password_123",
