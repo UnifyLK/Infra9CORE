@@ -158,6 +158,11 @@ test("environment setup prompts for and writes every required local value", asyn
     assert.match(env, /POSTGRES_PASSWORD=dbpass/);
     assert.match(env, /SMTP_HOST=smtp\.example\.test/);
     assert.doesNotMatch(env, /CHANGE_ME/);
+    const sourced = spawnSync("bash", ["-c", 'set -a; source infra/env/.env; test "$STUDIO_DEFAULT_ORGANIZATION" = "Default Organization"; test "$STUDIO_DEFAULT_PROJECT" = "Default Project"'], {
+      cwd: destination,
+      encoding: "utf8",
+    });
+    assert.equal(sourced.status, 0, sourced.stderr);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }
