@@ -96,6 +96,7 @@ export async function run(argv) {
   if (result.created) {
     console.log(`Infra9CORE created ${result.config.projectName} at ${result.config.destination}`);
     console.log("Review the generated ADR and environment template before starting services.");
+    console.log("Before product work, give your coding agent the initial handoff prompt in README.md under ‘First developer handoff’.");
   } else {
     console.log("Dry run complete; no files were written.");
   }

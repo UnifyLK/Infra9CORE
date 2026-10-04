@@ -20,7 +20,7 @@ test("packed package installs and generates a project through its consumer binar
     await mkdir(consumer);
     await execFile("npm", ["install", "--ignore-scripts", "--no-package-lock", "--prefix", consumer, tarball]);
     const destination = path.join(parent, "generated");
-    await execFile(path.join(consumer, "node_modules", ".bin", "create-infra9core"), [
+    const generation = await execFile(path.join(consumer, "node_modules", ".bin", "create-infra9core"), [
       destination,
       "--apps", "sveltekit,go",
       "--features", "none",
@@ -28,6 +28,7 @@ test("packed package installs and generates a project through its consumer binar
       "--yes",
       "--no-git",
     ]);
+    assert.match(generation.stdout, /First developer handoff/);
     await access(path.join(destination, ".infra9core", "manifest.json"));
     await access(path.join(destination, ".infra9core", "config.json"));
     await access(path.join(destination, "apps", "api-go", "go.mod"));

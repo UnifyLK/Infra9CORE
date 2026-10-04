@@ -175,7 +175,8 @@ async function main() {
   }
   await mkdir(path.dirname(promptPath), { recursive: true });
   for (const [target, content] of outputs) await writeFile(target, content);
-  console.log("Configuration complete. Set secrets in infra/env/.env, then run make doctor.");
+  console.log("Configuration complete. Before product work, use the initial handoff prompt in README.md under ‘First developer handoff’.");
+  console.log("Set secrets in infra/env/.env, then run make doctor.");
 }
 
 main().catch((error) => { console.error(`Infra9CORE configuration failed: ${error.message}`); process.exitCode = 1; });
