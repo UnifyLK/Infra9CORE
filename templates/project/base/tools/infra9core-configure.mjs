@@ -130,6 +130,8 @@ async function main() {
     config.deployment.gatewayExposureMode = await askGatewayExposureMode(config.deployment.gatewayExposureMode, rl);
     if (config.deployment.gatewayExposureMode === "public-supabase") {
       config.deployment.supabasePublicUrl = await ask("Public Supabase URL", config.deployment.supabasePublicUrl, rl);
+    } else {
+      delete config.deployment.supabasePublicUrl;
     }
     config.deployment.imageRegistry = await ask("Private production image registry", config.deployment.imageRegistry, rl);
   } finally { rl?.close(); }

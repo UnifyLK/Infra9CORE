@@ -52,6 +52,8 @@ test("always creates the project structure contract", async () => {
     await assert.rejects(() => readdir(path.join(destination, "templates")), { code: "ENOENT" });
     assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /Repository ownership contract/);
     assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /Supabase placement is a strict split/);
+    assert.match(await readFile(path.join(destination, "README.md"), "utf8"), /First developer handoff/);
+    assert.match(await readFile(path.join(destination, "README.md"), "utf8"), /Do not implement product features yet/);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }
@@ -120,8 +122,10 @@ test("private-bff first-run configuration keeps Kong and Studio out of Caddy", a
     await execute(process.execPath, ["tools/infra9core-configure.mjs", "--yes"], { cwd: destination });
     const caddy = await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8");
     const env = await readFile(path.join(destination, "infra/env/.env.example"), "utf8");
+    const configured = JSON.parse(await readFile(configPath, "utf8"));
     assert.doesNotMatch(caddy, /auth\/v1|rest\/v1|realtime\/v1|storage\/v1|functions\/v1|studio\./);
     assert.match(caddy, /127\.0\.0\.1:3100/);
+    assert.equal("supabasePublicUrl" in configured.deployment, false);
     assert.match(env, /GATEWAY_EXPOSURE_MODE=private-bff/);
     assert.match(env, /SUPABASE_INTERNAL_URL=http:\/\/kong:8000/);
     assert.match(env, /SUPABASE_PUBLIC_URL=http:\/\/configured\.localhost/);
