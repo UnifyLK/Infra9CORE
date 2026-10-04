@@ -29,6 +29,7 @@ test("packed package installs and generates a project through its consumer binar
       "--no-git",
     ]);
     assert.match(generation.stdout, /First developer handoff/);
+    assert.match(generation.stdout, /REQUIRED BEFORE PRODUCT IMPLEMENTATION: INITIAL CODING-AGENT HANDOFF/);
     await access(path.join(destination, ".infra9core", "manifest.json"));
     await access(path.join(destination, ".infra9core", "config.json"));
     await access(path.join(destination, "apps", "api-go", "go.mod"));
