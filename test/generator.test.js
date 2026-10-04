@@ -168,6 +168,23 @@ test("environment setup prompts for and writes every required local value", asyn
   }
 });
 
+test("environment setup rejects identical database and JWT secrets before writing", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-env-secret-separation-"));
+  const destination = path.join(parent, "configured");
+  try {
+    await generateProject({ destination, projectName: "Configured", apps: [], features: [], packageManager: "npm", git: false });
+    const values = ["same-secret", "same-secret", "anon-key", "service-key", "dashboard-user", "dashboard-pass", "smtp.example.test", "smtp-user", "smtp-pass"];
+    const result = spawnSync("bash", ["infra/scripts/env-init.sh"], {
+      cwd: destination, input: `${values.join("\n")}\n`, encoding: "utf8",
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /JWT_SECRET must differ from POSTGRES_PASSWORD/);
+    await assert.rejects(() => readFile(path.join(destination, "infra/env/.env")), { code: "ENOENT" });
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
 test("declares the selected package manager for every JavaScript workspace", async () => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-package-managers-"));
   try {

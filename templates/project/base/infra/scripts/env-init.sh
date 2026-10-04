@@ -48,6 +48,9 @@ for variable in "${required_variables[@]}"; do
   done
 done
 
+[[ "${answers[JWT_SECRET]}" != "${answers[POSTGRES_PASSWORD]}" ]] || \
+  die "JWT_SECRET must differ from POSTGRES_PASSWORD"
+
 cp -- "${template}" "${target}"
 for variable in "${required_variables[@]}"; do
   sed -i "s|^${variable}=.*$|${variable}=${answers[${variable}]}|" "${target}"
