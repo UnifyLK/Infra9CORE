@@ -75,6 +75,7 @@ test("first-run configuration renders only managed non-secret files", async () =
     assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /127\.0\.0\.1:3100/);
     assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /auth\/v1/);
     assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /127\.0\.0\.1:8000/);
+    assert.doesNotMatch(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /\n\n$/);
     await assert.rejects(() => readFile(path.join(destination, "infra/caddy/SarvaOps.import.caddy")), { code: "ENOENT" });
     assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /RLS/);
     assert.match(await readFile(path.join(destination, "infra/env/.env.example"), "utf8"), /PUBLIC_APP_URL=http:\/\/configured\.localhost/);

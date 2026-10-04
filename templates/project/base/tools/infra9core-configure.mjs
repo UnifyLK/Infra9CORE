@@ -38,7 +38,8 @@ function renderCaddy(source, config) {
     .replaceAll("{$SUPABASE_GATEWAY_ROUTE}", gatewayRoute)
     .replaceAll("{$SUPABASE_STUDIO_SITE}", studioSite)
     .replaceAll("{$APP_PORT}", String(config.deployment.appPort))
-    .replaceAll("{$APP_STATIC_ROOT}", config.deployment.appStaticRoot)}`;
+    .replaceAll("{$APP_STATIC_ROOT}", config.deployment.appStaticRoot)
+    .trimEnd()}\n`;
 }
 
 function renderSarvaOpsImport(config) {
