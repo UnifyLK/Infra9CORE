@@ -54,6 +54,7 @@ test("always creates the project structure contract", async () => {
     assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /Supabase placement is a strict split/);
     assert.match(await readFile(path.join(destination, "README.md"), "utf8"), /First developer handoff/);
     assert.match(await readFile(path.join(destination, "README.md"), "utf8"), /Do not implement product features yet/);
+    assert.match(await readFile(path.join(destination, "README.md"), "utf8"), /Show me the folder tree, the main tools and what conventions Infra9CORE set up/);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }
@@ -78,6 +79,7 @@ test("first-run configuration renders only managed non-secret files", async () =
     assert.doesNotMatch(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /\n\n$/);
     await assert.rejects(() => readFile(path.join(destination, "infra/caddy/SarvaOps.import.caddy")), { code: "ENOENT" });
     assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /RLS/);
+    assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /Show me the folder tree, the main tools and what conventions Infra9CORE set up/);
     assert.match(await readFile(path.join(destination, "infra/env/.env.example"), "utf8"), /PUBLIC_APP_URL=http:\/\/configured\.localhost/);
     await assert.rejects(() => readFile(path.join(destination, "infra/env/.env")), { code: "ENOENT" });
   } finally {

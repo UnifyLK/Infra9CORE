@@ -1,6 +1,6 @@
 import { parseCliArguments } from "./arguments.js";
 import { collectInteractiveOptions } from "./prompt.js";
-import { describePlan, generateProject, normalizeOptions, packageVersion } from "./generator.js";
+import { describePlan, generateProject, INITIAL_DEVELOPER_HANDOFF, normalizeOptions, packageVersion } from "./generator.js";
 import { inspectProject } from "./project-doctor.js";
 import { assertSupportedNode } from "./runtime.js";
 import { emitSarvaOpsPortAllocation } from './operational-contracts.js';
@@ -96,7 +96,8 @@ export async function run(argv) {
   if (result.created) {
     console.log(`Infra9CORE created ${result.config.projectName} at ${result.config.destination}`);
     console.log("Review the generated ADR and environment template before starting services.");
-    console.log("Before product work, give your coding agent the initial handoff prompt in README.md under ‘First developer handoff’.");
+    console.log("Before product work, configure the repository, then give your coding agent this initial handoff prompt (also saved in README.md under ‘First developer handoff’):");
+    console.log(`\n${INITIAL_DEVELOPER_HANDOFF}\n`);
   } else {
     console.log("Dry run complete; no files were written.");
   }
