@@ -73,13 +73,32 @@ test("first-run configuration renders only managed non-secret files", async () =
     assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /127\.0\.0\.1:3100/);
     assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /auth\/v1/);
     assert.match(await readFile(path.join(destination, "infra/caddy/Caddyfile"), "utf8"), /127\.0\.0\.1:8000/);
-    const sarvaOpsImport = await readFile(path.join(destination, "infra/caddy/SarvaOps.import.caddy"), "utf8");
-    assert.match(sarvaOpsImport, /www\.configured\.localhost/);
-    assert.match(sarvaOpsImport, /configured\.localhost \{\n\treverse_proxy 127\.0\.0\.1:3100/);
-    assert.doesNotMatch(sarvaOpsImport, /\*\.|auth\/v1|admin 127\.0\.0\.1/);
+    await assert.rejects(() => readFile(path.join(destination, "infra/caddy/SarvaOps.import.caddy")), { code: "ENOENT" });
     assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /RLS/);
     assert.match(await readFile(path.join(destination, "infra/env/.env.example"), "utf8"), /PUBLIC_APP_URL=http:\/\/configured\.localhost/);
     await assert.rejects(() => readFile(path.join(destination, "infra/env/.env")), { code: "ENOENT" });
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("SarvaOps profile derives host ports and emits provider-specific agent guidance", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-sarvaops-profile-"));
+  const destination = path.join(parent, "configured");
+  try {
+    await generateProject({ destination, projectName: "Configured", apps: ["sveltekit"], features: [], packageManager: "npm", git: false });
+    const configPath = path.join(destination, ".infra9core/config.json");
+    const config = JSON.parse(await readFile(configPath, "utf8"));
+    config.deployment.environment = "production";
+    config.deployment.portAllocation = { provider: "sarvaops", projectNumber: 12 };
+    await writeFile(configPath, JSON.stringify(config));
+    await execute(process.execPath, ["tools/infra9core-configure.mjs", "--yes"], { cwd: destination });
+    const configured = JSON.parse(await readFile(configPath, "utf8"));
+    assert.equal(configured.deployment.appPort, 12580);
+    assert.equal(configured.deployment.supabaseApiPort, 12590);
+    const sarvaOpsImport = await readFile(path.join(destination, "infra/caddy/SarvaOps.import.caddy"), "utf8");
+    assert.match(sarvaOpsImport, /reverse_proxy 127\.0\.0\.1:12580/);
+    assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /never replace them with container ports/);
   } finally {
     await rm(parent, { recursive: true, force: true });
   }

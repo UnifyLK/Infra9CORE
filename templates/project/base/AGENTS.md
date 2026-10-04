@@ -41,6 +41,12 @@ update before implementation.
 
 - Docker owns server runtime services. Bind published container ports to
   `127.0.0.1`; native Caddy on Ubuntu/WSL is the only public ingress.
+- `portAllocation.provider: direct` is the provider-neutral default. When the
+  deployment identity explicitly selects `sarvaops`, use only the derived
+  host ports in `.infra9core/config.json`; do not substitute a container port
+  such as Studio's `3000`, Kong's `8000`, or an application listener port in a
+  Caddy upstream or Compose host binding. Container ports remain an internal
+  runtime concern.
 - `private-bff` gateway mode permits native Caddy to expose only application
   routes; Kong, Supabase services, and Studio stay private. `public-supabase`
   is the explicit exception for reviewed Supabase gateway routes. Validate Caddy

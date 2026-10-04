@@ -115,6 +115,13 @@ First-run configuration explicitly selects gateway exposure. `public-supabase`
 keeps the reviewed Supabase Caddy routes; `private-bff` exposes only the
 application and uses Docker-internal `http://kong:8000` for Supabase access.
 
+Host-port allocation is provider-neutral by default (`direct`). Projects on a
+SarvaOps-managed shared host can explicitly select the `sarvaops` profile and
+registered project number. Only that profile derives its assigned loopback host
+ports and emits a SarvaOps Caddy import artifact. Neither profile permits a
+coding agent to use a container listener such as `3000` or `8000` as a host
+port by assumption.
+
 ## Daily operations
 
 ```bash
