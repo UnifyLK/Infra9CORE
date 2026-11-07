@@ -26,6 +26,7 @@ mkdir -p "$cargo_target_dir"
 export CARGO_TARGET_DIR="$cargo_target_dir"
 
 cd "$repo_root"
+pnpm_version=$(node --input-type=module -e 'import { PACKAGE_MANAGER_VERSIONS } from "./src/constants.js"; process.stdout.write(PACKAGE_MANAGER_VERSIONS.pnpm)')
 for command_name in git npm corepack python3 go cargo flutter file rg docker curl; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Required release-validation command is unavailable: $command_name" >&2
@@ -91,10 +92,13 @@ for service_port in web:3000 api-python:8080 api-go:8080 api-rust:8080; do
   curl --fail --silent --show-error "http://127.0.0.1:${host_port}/health" >/dev/null
 done
 "${audit_compose[@]}" down --remove-orphans
-corepack pnpm --dir "$audit_project" install --frozen-lockfile=false
-corepack pnpm --dir "$audit_project" lint
-corepack pnpm --dir "$audit_project" typecheck
-corepack pnpm --dir "$audit_project" test
+# `corepack pnpm` can select the host-default pnpm before it resolves the audit
+# project's packageManager field. Select the generator's pinned version
+# explicitly so release validation is independent of the maintainer's host pnpm.
+corepack "pnpm@${pnpm_version}" --dir "$audit_project" install --frozen-lockfile=false
+corepack "pnpm@${pnpm_version}" --dir "$audit_project" lint
+corepack "pnpm@${pnpm_version}" --dir "$audit_project" typecheck
+corepack "pnpm@${pnpm_version}" --dir "$audit_project" test
 
 python3 -m venv "$python_venv"
 "$python_venv/bin/pip" install -e "$audit_project/apps/api-python[dev]"
