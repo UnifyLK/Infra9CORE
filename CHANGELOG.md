@@ -17,6 +17,9 @@ All notable changes to Infra9CORE are documented here. The project follows
   Caddy import artifact.
 - Added a prominent first-developer handoff prompt to generated-project output
   and README guidance.
+- Added guarded Makefile commands for the main-centric GitHub workflow:
+  creating a feature branch, saving/pushing work, synchronizing with `main`,
+  creating or checking pull requests, and confirmation-gated PR merges.
 
 ### Fixed
 

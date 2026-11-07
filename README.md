@@ -168,6 +168,18 @@ The release gate builds and health-checks generated Docker services, validates a
 generated native Caddyfile, and runs the all-stack SvelteKit, Tauri, Python, Go,
 Rust, Flutter, and Android checks. It does not deploy anything.
 
+For day-to-day GitHub work, use the guarded Makefile workflow:
+
+```bash
+make feature NAME=short-description
+make save MESSAGE="feat: short description"
+make pr TITLE="feat: short description"
+make pr-merge PR=123 CONFIRM_MERGE=1 METHOD=squash
+```
+
+See the [contribution guide](CONTRIBUTING.md) for all supported GitHub commands
+and their safety checks.
+
 For a new version, update `package.json` and `CHANGELOG.md`, merge reviewed work
 into `main`, then run:
 
