@@ -5,6 +5,30 @@ All notable changes to Infra9CORE are documented here. The project follows
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-07
+
+### Added
+
+- Added explicit `private-bff` and `public-supabase` gateway exposure modes,
+  with generated Caddy and environment configuration that keeps Kong and Studio
+  private in BFF mode.
+- Added provider-neutral direct host-port allocation and the opt-in SarvaOps
+  allocation profile, including a versioned port contract and reviewed SarvaOps
+  Caddy import artifact.
+- Added a prominent first-developer handoff prompt to generated-project output
+  and README guidance.
+- Added guarded Makefile commands for the main-centric GitHub workflow:
+  creating a feature branch, saving/pushing work, synchronizing with `main`,
+  creating or checking pull requests, and confirmation-gated PR merges.
+
+### Fixed
+
+- `make env` can securely generate the local database password, JWT secret,
+  Supabase anon/service keys, and dashboard password when the corresponding
+  prompts are left blank; external-provider values remain operator supplied.
+- Reject identical database and JWT secrets, quote shell-sourced Studio values,
+  and normalize generated Caddyfile output.
+
 ## [0.1.2] - 2026-10-04
 
 ### Added

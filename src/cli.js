@@ -96,8 +96,11 @@ export async function run(argv) {
   if (result.created) {
     console.log(`Infra9CORE created ${result.config.projectName} at ${result.config.destination}`);
     console.log("Review the generated ADR and environment template before starting services.");
-    console.log("Before product work, configure the repository, then give your coding agent this initial handoff prompt (also saved in README.md under ‘First developer handoff’):");
-    console.log(`\n${INITIAL_DEVELOPER_HANDOFF}\n`);
+    console.log(`\n${"=".repeat(78)}\nREQUIRED BEFORE PRODUCT IMPLEMENTATION: INITIAL CODING-AGENT HANDOFF\n${"=".repeat(78)}`);
+    console.log("First run make infra9core, make env, make doctor, and make config. Then copy the prompt below into your coding agent.");
+    console.log("It is also saved in README.md under ‘First developer handoff’.\n");
+    console.log(INITIAL_DEVELOPER_HANDOFF);
+    console.log(`${"=".repeat(78)}\n`);
   } else {
     console.log("Dry run complete; no files were written.");
   }

@@ -175,6 +175,32 @@ test("environment setup prompts for and writes every required local value", asyn
   }
 });
 
+test("environment setup securely generates owned secrets when left blank", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-env-generated-secrets-"));
+  const destination = path.join(parent, "configured");
+  try {
+    await generateProject({ destination, projectName: "Configured", apps: [], features: [], packageManager: "npm", git: false });
+    const values = ["", "", "", "", "dashboard-user", "", "smtp.example.test", "smtp-user", "smtp-pass"];
+    const result = spawnSync("bash", ["infra/scripts/env-init.sh"], {
+      cwd: destination, input: `${values.join("\n")}\n`, encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const env = await readFile(path.join(destination, "infra/env/.env"), "utf8");
+    const value = (name) => env.match(new RegExp(`^${name}=(.+)$`, "m"))?.[1];
+    assert.match(value("POSTGRES_PASSWORD"), /^[A-Za-z0-9_-]{40,}$/);
+    assert.match(value("JWT_SECRET"), /^[A-Za-z0-9_-]{60,}$/);
+    assert.match(value("DASHBOARD_PASSWORD"), /^[A-Za-z0-9_-]{40,}$/);
+    for (const [name, role] of [["SUPABASE_ANON_KEY", "anon"], ["SUPABASE_SERVICE_ROLE_KEY", "service_role"]]) {
+      const token = value(name);
+      assert.match(token, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+      assert.equal(JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()).role, role);
+    }
+    assert.match(result.stdout, /Generated a local value for JWT_SECRET/);
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
 test("environment setup rejects identical database and JWT secrets before writing", async () => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-env-secret-separation-"));
   const destination = path.join(parent, "configured");

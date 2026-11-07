@@ -22,6 +22,28 @@ bash tools/release-validate.sh
 This repository intentionally does not run workflows automatically for pull
 requests or merges.
 
+## GitHub workflow
+
+Use the root Makefile for the standard main-centric workflow:
+
+```bash
+make git-status
+make feature NAME=short-description
+make save MESSAGE="feat: short description"
+make sync
+make push
+make pr TITLE="feat: short description"
+make pr-status
+make pr-merge PR=123 CONFIRM_MERGE=1 METHOD=squash
+```
+
+`make save` stages, validates, commits, and pushes the current feature branch.
+`make pr` refuses dirty branches and opens or shows the current branch's pull
+request against `main`. `make pr-merge` is deliberately confirmation-gated,
+deletes the merged remote branch, and fast-forwards the local checkout to
+`main`. Release publication remains separate and requires `make release
+CONFIRM_RELEASE=1`.
+
 ## Generated-project contract
 
 Do not copy product code, domains, credentials, brands, or ports into templates.

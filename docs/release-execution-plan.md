@@ -1,138 +1,84 @@
 # Infra9CORE npm release execution plan
 
-## Objective
+## Purpose
 
-Publish the first public, provenance-attested release of
-`@unifyit/create-infra9core` without exposing credentials and with a reproducible
-rollback path.
+This is the current procedure for publishing a reviewed, provenance-attested
+version of `@unifyit/create-infra9core`. It applies to every release after the
+initial public publication; historical bootstrap details belong in the changelog
+and GitHub release history.
 
-## Release scope
+## Release contract
 
-- Package: `@unifyit/create-infra9core`
-- Bootstrap version: `0.1.0`, published interactively on 2026-09-30
-- Registry visibility: public
-- Runtime requirement: Node.js 24.x only (`>=24 <25`)
-- Release source: protected `main` branch of `UnifyLK/Infra9CORE`
-- Publishing path: the `Publish package` GitHub Actions workflow
+- Source: reviewed, clean `main` in `UnifyLK/Infra9CORE`.
+- Runtime: Node.js 24.x only (`>=24 <25`).
+- Current published version: `0.1.2`.
+- Intended next version: `0.1.3`.
+- Publication: annotated Git tag, GitHub Release, and npm publication with
+  provenance through the `Publish package` workflow.
+- Authority: the release owner reviews release evidence and explicitly approves
+  merge and publication.
 
-## Current control status
+## Prepare the release candidate
 
-| Control | Current state | Required action |
-| --- | --- | --- |
-| npm publisher identity | Bootstrap publish completed with npm 2FA | Configure trusted publishing before the next release. |
-| npm package name | `@unifyit/create-infra9core@0.1.0` published | Verify `latest` and npx smoke before each later release. |
-| GitHub release environment | `npm-production` is the intended protected release environment | Require authorized reviewers and remove the bootstrap token after OIDC verification. |
-| `main` protection | Not configured | Restrict direct pushes and tag/release creation; release validation is explicit, not per-merge. |
-| Release source integrity | Workflow validates tag/version and ancestry | Keep tag-driven releases only; do not publish arbitrary commits. |
+1. Keep implementation, tests, changelog, public release documentation, and
+   generated-project contract changes in the reviewed release candidate.
+2. Add a dated changelog section matching the package version and summarize
+   generated-project compatibility impact and any required operator action.
+3. Confirm package metadata, lockfile metadata, and intended tag agree on the
+   same semantic version.
+4. Review public documentation for credentials, private hostnames, local paths,
+   temporary directories, or unpublished operational details.
+5. Merge the approved candidate into `main`, then fast-forward local `main` to
+   `origin/main`.
 
-## Phase 1: Confirm the release candidate
+## Validate from clean main
 
-1. Verify `main` contains the intended release commit and has no unrelated
-   uncommitted changes.
-2. Run `npm run validate` with Node 24. This runs generator tests and verifies
-   the exact npm tarball file list.
-3. Generate a fresh project using every supported recipe and verify its
-   required root contract: `apps`, `docs`, `infra`, `packages`, `shared`,
-   `supabase`, `tools`, `.nvmrc`, `LICENSE`, `Makefile`, `README.md`,
-   `.gitignore`, `.gitattributes`, and `.editorconfig`.
-4. Run recipe-specific checks when their SDK is available: Svelte typecheck,
-   Flutter analyze/test, Python Ruff/pytest, Go test, Rust check, and Tauri
-   typecheck/lint/test.
-5. Confirm `npm pack --dry-run` includes only the executable, source, templates,
-   license, and package README; it must not include build outputs, credentials,
-   or local audit artifacts.
-6. Scan the generated project for unresolved `{{TOKEN}}` values and verify the
-   copied Tauri icon is a valid binary PNG. This guards the text renderer from
-   corrupting binary template assets.
-7. Complete the advisory [upstream reference review](upstream-reference-review.md):
-   review SarvaOps' current agent and Caddy operations guidance for reusable
-   principles, record the reviewed commit/date and each adoption decision. This
-   is not a dependency on SarvaOps and does not assume generated projects use it.
+Run the full release gate only from a clean, current `main` checkout:
 
-Exit criterion: all checks pass and no generator template token remains in the
-generated project.
+```bash
+make release-validate
+```
 
-The reproducible manual gate is `bash tools/release-validate.sh`. It is never
-triggered by a pull request or merge; run it before creating a release tag.
-Its dedicated Cargo cache is retained between runs, while each generated audit
-project remains disposable.
+The gate installs package metadata, runs generator and package-content checks,
+audits production dependencies, generates every supported recipe, scans for
+unresolved template tokens, validates Compose/Caddy configuration, builds and
+health-checks Docker services, and runs SvelteKit, Python, Go, Rust, and Flutter
+checks. A stopped or interrupted run is not release evidence.
 
-## Phase 1.1: Close automation coverage gaps
+Record the successful command, commit SHA, Node.js version, and any material
+tool versions in the GitHub Release notes.
 
-1. Extend Generator CI with an all-recipe generation smoke test, including a
-   token scan and binary icon validation.
-2. Add a release-candidate native SDK job for Flutter creation and analyzer/test.
-   Unit tests deliberately avoid SDK scaffolding, so they do not prove native
-   runner generation.
-3. Add recipe tests where a template currently only compiles: a Svelte test
-   script, health-route tests for Go and Rust, and a meaningful Tauri test.
-4. Keep full native compilation out of pull-request and merge automation. Run it
-   as an explicit release-candidate gate before creating a release tag.
+## Release authorization and publication
 
-Exit criterion: the release candidate has a repeatable all-stack validation
-record, not only generator unit-test evidence.
+Before publication, the release owner verifies npm organization ownership,
+two-factor requirements, release-maintainer authority, and trusted publishing
+for the GitHub workflow. Do not store npm passwords, personal tokens, or secret
+values in the repository or shell history.
 
-## Phase 2: Establish npm publishing authority
+After review and explicit authorization:
 
-1. Confirm the `unifyit` npm organization retains publish ownership for
-   `@unifyit/create-infra9core`.
-2. Configure branch protection for `main`: restrict direct pushes and limit
-   tag/release creation to release maintainers. Do not require a workflow check
-   for ordinary pull requests or merges; release validation is performed
-   explicitly before tagging.
-3. In the npm package settings, configure GitHub Actions trusted publishing for
-   `UnifyLK/Infra9CORE` and the `Publish package` workflow. This is the preferred
-   option because it uses short-lived identity tokens.
-4. The `0.1.0` bootstrap release used interactive npm 2FA because the temporary
-   token required an OTP in GitHub Actions. Configure trusted publishing now that
-   the package exists, verify it on the next patch release, then remove the
-   `NPM_TOKEN` environment secret and revoke the bootstrap token.
-5. Confirm the npm organization owner, required two-factor authentication, token
-   expiry/rotation policy, and release approvers before granting publish access.
-6. Restrict that environment to authorized release approvers. Do not store an
-   npm password, personal token, or token value in the repository.
+```bash
+make release CONFIRM_RELEASE=1
+```
 
-Exit criterion: the GitHub environment is protected and one of the two
-authentication methods is configured.
+The guarded command refuses a dirty or stale checkout, an existing tag, or an
+existing npm version. It validates again, creates and pushes the annotated tag,
+creates the GitHub Release, waits for the publish workflow, and confirms npm
+registry availability.
 
-## Phase 3: Publish
+## Post-publication evidence
 
-1. Create and push an annotated tag matching `package.json`, next `v0.1.1`,
-   from the protected `main` branch.
-2. Create a GitHub release from that tag. The workflow explicitly checks out the
-   tag, verifies it matches `package.json`, confirms it is reachable from `main`,
-   installs dependencies with Node 24, reruns validation, and executes
-   `npm publish --access public --provenance`.
-3. Review the workflow log and verify that npm reports the expected package name,
-   version, public access, and provenance.
-4. From a clean temporary directory, run:
+1. Verify the GitHub Release, `v0.1.3` tag, npm version, and npm provenance.
+2. From a clean temporary directory, run an `npx` generation smoke test for the
+   published version and execute the generated project's documented first-run
+   commands.
+3. Update the dated release-readiness audit with final validation, merge, tag,
+   publication, and smoke-test evidence.
+4. Delete merged release-candidate branches according to the repository's
+   retention policy.
 
-   ```bash
-   npx @unifyit/create-infra9core@0.1.1 verify-infra9core --yes --no-git
-   ```
+## Recovery
 
-5. Verify the generated repository structure and run its documented validation
-   command.
-
-Exit criterion: the public npx smoke test succeeds, `npm view` reports the
-expected version and provenance, and the release workflow is green.
-
-## Phase 4: Post-release operations
-
-1. Add the npm package URL and first-release notes to the GitHub release.
-2. Enable npm package notifications and review installation/error reports.
-3. Use semantic versioning for all subsequent releases; never overwrite or
-   republish `0.1.0`.
-4. Keep a short release note describing changed templates, supported stacks,
-   Node requirement, and any migration action.
-
-## Failure handling
-
-- Before npm publication: correct an unpushed local tag or delete a draft release.
-  Never move or delete a pushed/public tag; create a new versioned tag instead.
-- After npm publication: do not overwrite the release. Publish a patched version
-  and deprecate the faulty version with a clear replacement message if needed.
-- Workflow credential failure: correct the protected environment configuration;
-  do not fall back to a developer personal token in shell history.
-- Provenance failure: resolve the GitHub trusted-publishing or token configuration
-  and publish a new version only after validation is green.
+npm versions and public tags are immutable. For a faulty published version,
+publish a corrected patch release, document the replacement in GitHub and npm,
+and follow the [release recovery runbook](runbooks/release-recovery.md).
