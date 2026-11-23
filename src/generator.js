@@ -1,8 +1,8 @@
-import { chmod, mkdir, readFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  APP_TYPES, DEFAULTS, FEATURES, FLUTTER_PLATFORMS, PACKAGE_MANAGERS,
+  APP_TYPES, BACKENDS, DEFAULTS, FEATURES, FLUTTER_PLATFORMS, PACKAGE_MANAGERS,
   PACKAGE_MANAGER_VERSIONS,
 } from "./constants.js";
 import { createApplications } from "./app-recipes.js";
@@ -39,11 +39,13 @@ export function normalizeOptions(options, cwd = process.cwd()) {
   const apps = unique(options.apps ?? DEFAULTS.apps);
   const features = unique(options.features ?? DEFAULTS.features);
   const packageManager = options.packageManager ?? DEFAULTS.packageManager;
+  const backend = options.backend ?? DEFAULTS.backend;
   const unknownApps = apps.filter((item) => !APP_TYPES.includes(item));
   const unknownFeatures = features.filter((item) => !FEATURES.includes(item));
   if (unknownApps.length) throw new Error(`Unknown application type: ${unknownApps.join(", ")}`);
   if (unknownFeatures.length) throw new Error(`Unknown feature: ${unknownFeatures.join(", ")}`);
   if (!PACKAGE_MANAGERS.includes(packageManager)) throw new Error(`Unknown package manager: ${packageManager}`);
+  if (!BACKENDS.includes(backend)) throw new Error(`Unknown backend: ${backend}`);
   const organizationId = options.organizationId ?? "com.example";
   if (!/^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(organizationId)) {
     throw new Error(`Invalid reverse-domain organization ID: ${organizationId}`);
@@ -59,6 +61,7 @@ export function normalizeOptions(options, cwd = process.cwd()) {
     apps,
     features,
     packageManager,
+    backend,
     organizationId,
     flutterPlatforms,
   };
@@ -69,6 +72,7 @@ export function describePlan(config) {
     `Project:        ${config.projectName}`,
     `Destination:    ${config.destination}`,
     `Applications:   ${config.apps.join(", ") || "none"}`,
+    `Backend:        ${config.backend}`,
     `Optional overlays: ${config.features.join(", ") || "none"}`,
     `Package manager:${config.packageManager}`,
     `Organization ID:${config.organizationId}`,
@@ -90,6 +94,20 @@ async function copyBaseline(root, features) {
       path.join(root, ".github"),
     );
   }
+}
+
+async function applyBackendProfile(root, backend) {
+  if (backend === "supabase") return;
+  await rm(path.join(root, "supabase"), { recursive: true, force: true });
+  await rm(path.join(root, "infra", "supabase"), { recursive: true, force: true });
+  await rm(path.join(root, "infra", "images"), { recursive: true, force: true });
+  for (const script of ["db-backup.sh", "db-migrate.sh", "db-restore.sh", "db-rollback.sh"]) {
+    await rm(path.join(root, "infra", "scripts", script), { force: true });
+  }
+  for (const file of ["AGENTS.md", "Makefile", "docs/README.md", "docs/adr/0001-product-agnostic-infrastructure-baseline.md", "docs/runbooks/deployment.md", "docs/runbooks/backup-restore.md", "infra/env/.env.example", "infra/docker/docker-compose.yml", "infra/caddy/Caddyfile.example", "infra/scripts/doctor.sh", "infra/scripts/env-init.sh", "tools/validate.sh", "tools/infra9core-configure.mjs"]) {
+    await copyPath(path.join(projectTemplates, backend, file), path.join(root, file));
+  }
+  await copyPath(path.join(projectTemplates, backend, "firebase"), path.join(root, "firebase"));
 }
 
 function generatedPackage(config, apps) {
@@ -133,16 +151,17 @@ async function createWorkspaceFiles(root, config, apps) {
   }
 }
 
-function runtimeService(app, index) {
+function runtimeService(app, index, backend) {
   const ports = { sveltekit: 3000, python: 8080, go: 8080, rust: 8080 };
   if (!(app.type in ports)) return null;
   const containerPort = ports[app.type];
   const hostPort = 3100 + index;
-  return [`${app.name}:`, "  build:", `    context: ../../apps/${app.name}`, "    dockerfile: Dockerfile", `  image: ${app.name}:local`, "  restart: unless-stopped", "  env_file:", "    - ../env/.env", "  depends_on:", "    kong:", "      condition: service_started", "  networks: [backend]", "  ports:", `    - \"127.0.0.1:${hostPort}:${containerPort}\"`, "  labels:", `    infra9core.role: \"${app.type}\"`].join("\n");
+  const dependencies = backend === "supabase" ? ["  depends_on:", "    kong:", "      condition: service_started", "  networks: [backend]"] : [];
+  return [`${app.name}:`, "  build:", `    context: ../../apps/${app.name}`, "    dockerfile: Dockerfile", `  image: ${app.name}:local`, "  restart: unless-stopped", "  env_file:", "    - ../env/.env", ...dependencies, "  ports:", `    - \"127.0.0.1:${hostPort}:${containerPort}\"`, "  labels:", `    infra9core.role: \"${app.type}\"`].join("\n");
 }
 
-async function createApplicationRuntime(root, apps) {
-  const services = apps.map(runtimeService).filter(Boolean);
+async function createApplicationRuntime(root, apps, backend) {
+  const services = apps.map((app, index) => runtimeService(app, index, backend)).filter(Boolean);
   const content = services.length
     ? `# Generated by Infra9CORE. Application runtimes are Docker-owned.\nservices:\n${services.map((service) => service.split("\n").map((line) => `  ${line}`).join("\n")).join("\n\n")}\n`
     : "# Generated by Infra9CORE. No containerized server recipes were selected.\nservices: {}\n";
@@ -155,7 +174,11 @@ async function createProjectReadme(root, config, apps) {
   const appList = apps.map(({ type, name }) => `- \`apps/${name}\`: ${type}`).join("\n") || "- No application recipes selected";
   const overlays = config.features.map((feature) => `\`${feature}\``).join(", ") || "none";
   const developerHandoff = INITIAL_DEVELOPER_HANDOFF;
-  await writeText(path.join(root, "README.md"), `# ${config.projectName}\n\nGenerated with [Infra9CORE](https://github.com/UnifyLK/Infra9CORE).\n\n## Applications\n\n${appList}\n\n## Infrastructure\n\nCore capabilities: Docker Compose, self-hosted Supabase, native Caddy, migrations, backup/restore, and observability.\n\nOptional overlays: ${overlays}.\n\nProject identity, domains, ports, credentials, registry locations, and deployment targets belong in environment configuration. Never commit secrets.\n\n## First-run configuration\n\nRun \`make infra9core\` before starting services. It asks for non-secret deployment identity, previews its managed changes, and renders \`infra/env/.env.example\`, \`infra/caddy/Caddyfile\`, and \`docs/infra9core/FIRST_RUN_AGENT_PROMPT.md\`. The committed \`.infra9core/config.json\` is the non-secret configuration record; \`infra/env/.env\` remains local-only secret material.\n\n## First developer handoff\n\nBefore asking a coding agent to implement product features, give it this initial prompt:\n\n\`\`\`text\n${developerHandoff}\n\`\`\`\n\nReview that discovery output with the product owner before authorizing implementation. The generated \`AGENTS.md\` and first-run brief remain the agent's durable repository instructions after handoff.\n\n## Dependency bootstrap\n\nThis project pins ${config.packageManager} in \`package.json\`. Install dependencies with:\n\n\`\`\`bash\n${config.packageManager} install\n\`\`\`\n\nCommit the resulting lockfiles (for example \`package-lock.json\`, \`pnpm-lock.yaml\`, \`yarn.lock\`, \`bun.lock\`, \`Cargo.lock\`, and \`pubspec.lock\`) after reviewing them. The generator deliberately does not ship pre-resolved lockfiles because dependency resolution belongs to the generated project and its selected platforms.\n\n## Start\n\n\`\`\`bash\nmake infra9core\nmake env # prompts for every required local secret and setting\nmake doctor\nmake up\nmake migrate\n\`\`\`\n`);
+  const backendDescription = config.backend === "firebase"
+    ? "Firebase-managed Auth, Firestore, Storage, Functions, Emulator Suite configuration, Docker Compose for selected server applications, native Caddy, and observability."
+    : "Docker Compose, self-hosted Supabase, native Caddy, migrations, backup/restore, and observability.";
+  const start = config.backend === "firebase" ? "make infra9core\nmake env # writes non-secret local Firebase project configuration\nmake doctor\nmake firebase-emulators" : "make infra9core\nmake env # prompts for every required local secret and setting\nmake doctor\nmake up\nmake migrate";
+  await writeText(path.join(root, "README.md"), `# ${config.projectName}\n\nGenerated with [Infra9CORE](https://github.com/UnifyLK/Infra9CORE).\n\n## Applications\n\n${appList}\n\n## Infrastructure\n\nBackend profile: \`${config.backend}\`. Core capabilities: ${backendDescription}\n\nOptional overlays: ${overlays}.\n\nProject identity, domains, ports, credentials, registry locations, and deployment targets belong in environment configuration. Never commit secrets.\n\n## First-run configuration\n\nRun \`make infra9core\` before starting services. It asks for non-secret deployment identity, previews its managed changes, and renders \`infra/env/.env.example\`, \`infra/caddy/Caddyfile\`, and \`docs/infra9core/FIRST_RUN_AGENT_PROMPT.md\`. The committed \`.infra9core/config.json\` is the non-secret configuration record; \`infra/env/.env\` remains local-only secret material.\n\n## First developer handoff\n\nBefore asking a coding agent to implement product features, give it this initial prompt:\n\n\`\`\`text\n${developerHandoff}\n\`\`\`\n\nReview that discovery output with the product owner before authorizing implementation. The generated \`AGENTS.md\` and first-run brief remain the agent's durable repository instructions after handoff.\n\n## Dependency bootstrap\n\nThis project pins ${config.packageManager} in \`package.json\`. Install dependencies with:\n\n\`\`\`bash\n${config.packageManager} install\n\`\`\`\n\nCommit the resulting lockfiles after reviewing them.\n\n## Start\n\n\`\`\`bash\n${start}\n\`\`\`\n`);
 }
 
 async function createManifest(root, config, apps) {
@@ -168,6 +191,7 @@ async function createManifest(root, config, apps) {
     project: {
       slug: config.slug,
       apps: config.apps,
+      backend: config.backend,
       appDirectories,
       features: config.features,
       packageManager: config.packageManager,
@@ -179,29 +203,15 @@ async function createManifest(root, config, apps) {
 
 async function createFirstRunConfiguration(root, config) {
   const publicAppUrl = config.apps.includes("sveltekit") ? `http://${config.slug}.localhost` : "http://localhost:3000";
+  const deployment = config.backend === "firebase" ? {
+    environment: "development", appDomain: `${config.slug}.localhost`, sarvaOpsImportHosts: [`${config.slug}.localhost`], portAllocation: { provider: "direct" }, tlsEmail: "admin@example.invalid", publicAppUrl, appPort: 3100, appStaticRoot: "/var/www/app", imageRegistry: "docker.io",
+  } : {
+    environment: "development", appDomain: `${config.slug}.localhost`, sarvaOpsImportHosts: [`${config.slug}.localhost`], portAllocation: { provider: "direct" }, studioDomain: `studio.${config.slug}.localhost`, tlsEmail: "admin@example.invalid", publicAppUrl, gatewayExposureMode: "public-supabase", supabasePublicUrl: "http://localhost:8000", supabaseInternalUrl: "http://kong:8000", additionalRedirectUrls: "", supabaseBindAddress: "127.0.0.1", supabaseApiPort: 8000, supabaseStudioPort: 3001, postgresPort: 5432, appPort: 3100, appStaticRoot: "/var/www/app", imageRegistry: "docker.io",
+  };
   await writeText(path.join(root, ".infra9core", "config.json"), JSON.stringify({
     schemaVersion: 1,
-    project: { name: config.projectName, slug: config.slug, apps: config.apps },
-    deployment: {
-      environment: "development",
-      appDomain: `${config.slug}.localhost`,
-      sarvaOpsImportHosts: [`${config.slug}.localhost`],
-      portAllocation: { provider: "direct" },
-      studioDomain: `studio.${config.slug}.localhost`,
-      tlsEmail: "admin@example.invalid",
-      publicAppUrl,
-      gatewayExposureMode: "public-supabase",
-      supabasePublicUrl: "http://localhost:8000",
-      supabaseInternalUrl: "http://kong:8000",
-      additionalRedirectUrls: "",
-      supabaseBindAddress: "127.0.0.1",
-      supabaseApiPort: 8000,
-      supabaseStudioPort: 3001,
-      postgresPort: 5432,
-      appPort: 3100,
-      appStaticRoot: "/var/www/app",
-      imageRegistry: "docker.io",
-    },
+    project: { name: config.projectName, slug: config.slug, apps: config.apps, backend: config.backend },
+    deployment,
   }, null, 2));
 }
 
@@ -211,12 +221,12 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
   await assertDestination(config.destination, config.force);
   await mkdir(config.destination, { recursive: true });
   for (const directory of [
-    "apps", "docs", "infra", "packages", "shared", "supabase", "tools",
-    "supabase/functions", "supabase/migrations", "supabase/rollbacks",
+    "apps", "docs", "infra", "packages", "shared", "tools",
   ]) {
     await mkdir(path.join(config.destination, directory), { recursive: true });
   }
   await copyBaseline(config.destination, config.features);
+  await applyBackendProfile(config.destination, config.backend);
   const apps = await createApplications(
     config.destination,
     config.apps,
@@ -228,10 +238,10 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
   await writeText(path.join(config.destination, "infra/.gitkeep"), "");
   await writeText(path.join(config.destination, "packages/.gitkeep"), "");
   await writeText(path.join(config.destination, "shared/.gitkeep"), "");
-  await writeText(path.join(config.destination, "supabase/functions/.gitkeep"), "");
+  if (config.backend === "supabase") await writeText(path.join(config.destination, "supabase/functions/.gitkeep"), "");
   await writeText(path.join(config.destination, "tools/.gitkeep"), "");
   await createWorkspaceFiles(config.destination, config, apps);
-  await createApplicationRuntime(config.destination, apps);
+  await createApplicationRuntime(config.destination, apps, config.backend);
   await createProjectReadme(config.destination, config, apps);
   await createManifest(config.destination, config, apps);
   await createFirstRunConfiguration(config.destination, config);
@@ -239,7 +249,7 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
     ["PROJECT_SLUG=change-me", `PROJECT_SLUG=${config.slug}`],
     ["COMPOSE_PROJECT_NAME=change-me", `COMPOSE_PROJECT_NAME=${config.slug}`],
   ]);
-  for (const script of ["tools/validate.sh", "tools/infra9core-configure.mjs", "infra/supabase/volumes/api/kong-entrypoint.sh"]) {
+  for (const script of ["tools/validate.sh", "tools/infra9core-configure.mjs", ...(config.backend === "supabase" ? ["infra/supabase/volumes/api/kong-entrypoint.sh"] : [])]) {
     await chmod(path.join(config.destination, script), 0o755);
   }
   const scripts = await import("node:fs/promises").then(({ readdir }) => readdir(path.join(config.destination, "infra/scripts")));

@@ -60,6 +60,27 @@ test("always creates the project structure contract", async () => {
   }
 });
 
+test("Firebase profile generates a managed Firebase boundary without Supabase", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-firebase-"));
+  const destination = path.join(parent, "desktop");
+  try {
+    await generateProject({
+      destination, projectName: "Firebase Desktop", apps: ["tauri"], backend: "firebase",
+      features: [], packageManager: "npm", git: false,
+    });
+    const manifest = JSON.parse(await readFile(path.join(destination, ".infra9core/manifest.json"), "utf8"));
+    assert.equal(manifest.project.backend, "firebase");
+    await readFile(path.join(destination, "firebase/firebase.json"), "utf8");
+    assert.match(await readFile(path.join(destination, "firebase/firestore.rules"), "utf8"), /allow read, write: if false/);
+    await assert.rejects(() => readdir(path.join(destination, "supabase")), { code: "ENOENT" });
+    await assert.rejects(() => readdir(path.join(destination, "infra", "supabase")), { code: "ENOENT" });
+    assert.doesNotMatch(await readFile(path.join(destination, "infra/docker/docker-compose.yml"), "utf8"), /supabase|kong/i);
+    assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /managed Firebase/i);
+    await execute(process.execPath, ["tools/infra9core-configure.mjs", "--yes"], { cwd: destination });
+    assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /emulator/i);
+  } finally { await rm(parent, { recursive: true, force: true }); }
+});
+
 test("first-run configuration renders only managed non-secret files", async () => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-first-run-"));
   const destination = path.join(parent, "configured");

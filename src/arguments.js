@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { APP_TYPES, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
+import { APP_TYPES, BACKENDS, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
 
 function commaList(value) {
   if (value.trim().toLowerCase() === "none") return [];
@@ -27,6 +27,7 @@ export function parseCliArguments(argv) {
       apps: { type: "string", short: "a" },
       features: { type: "string", short: "f" },
       "package-manager": { type: "string", short: "p" },
+      backend: { type: "string" },
       "organization-id": { type: "string" },
       "flutter-platforms": { type: "string" },
       yes: { type: "boolean", short: "y", default: false },
@@ -47,6 +48,7 @@ export function parseCliArguments(argv) {
   if (values["package-manager"] && !PACKAGE_MANAGERS.includes(values["package-manager"])) {
     throw new Error(`Unknown package manager: ${values["package-manager"]}`);
   }
+  if (values.backend && !BACKENDS.includes(values.backend)) throw new Error(`Unknown backend: ${values.backend}. Allowed: ${BACKENDS.join(", ")}`);
 
   return {
     destination: positionals[0],
@@ -54,6 +56,7 @@ export function parseCliArguments(argv) {
     apps,
     features,
     packageManager: values["package-manager"],
+    backend: values.backend,
     organizationId: values["organization-id"],
     flutterPlatforms: values["flutter-platforms"] ? commaList(values["flutter-platforms"]) : undefined,
     yes: values.yes,

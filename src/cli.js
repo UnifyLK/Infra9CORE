@@ -17,6 +17,7 @@ Options:
   -n, --name <name>               Project display name
   -a, --apps <list>               sveltekit,flutter,python,go,rust,tauri,custom,none
   -f, --features <list>           Optional overlays: ci or none
+      --backend <name>             supabase (default) or firebase
   -p, --package-manager <name>    pnpm, npm, yarn, or bun
       --organization-id <id>      Reverse-domain app ID (default: com.example)
       --flutter-platforms <list>  android,ios,web,linux,macos,windows
@@ -29,7 +30,7 @@ Options:
   -h, --help                      Show this help
 
 Example:
-  npx @unifyit/create-infra9core@latest my-product --apps sveltekit,flutter,python --features ci --organization-id com.example
+  npx @unifyit/create-infra9core@latest my-product --apps sveltekit,flutter --backend firebase --features ci --organization-id com.example
 `;
 
 export async function run(argv) {

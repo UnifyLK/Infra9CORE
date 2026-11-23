@@ -19,6 +19,19 @@ test("doctor accepts a fresh generated project", async () => {
   }
 });
 
+test("doctor accepts a Firebase project and rejects an added Supabase runtime", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-doctor-firebase-"));
+  const destination = path.join(parent, "project");
+  try {
+    await generateProject({ destination, projectName: "Firebase Project", backend: "firebase", apps: ["tauri"], features: [], packageManager: "npm", git: false });
+    const accepted = await inspectProject(destination);
+    assert.ok(accepted.findings.every((finding) => finding.startsWith("generated project requires Node.js 24.x")));
+    await mkdir(path.join(destination, "supabase"), { recursive: true });
+    const rejected = await inspectProject(destination);
+    assert.ok(rejected.findings.some((finding) => finding.includes("Firebase profile must not include a Supabase runtime")));
+  } finally { await rm(parent, { recursive: true, force: true }); }
+});
+
 test("doctor enforces the Supabase product/runtime split", async () => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-doctor-supabase-"));
   const destination = path.join(parent, "project");

@@ -1,0 +1,14 @@
+{
+	email {$TLS_EMAIL}
+	admin 127.0.0.1:2019
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+	}
+	reverse_proxy 127.0.0.1:{$APP_PORT}
+}
