@@ -16,6 +16,7 @@ const baseFiles = [
   ["editorconfig", ".editorconfig"],
   ["gitattributes", ".gitattributes"],
   ["gitignore", ".gitignore"],
+  ["dockerignore", ".dockerignore"],
   ["nvmrc", ".nvmrc"],
   ["LICENSE", "LICENSE"],
   ["AGENTS.md", "AGENTS.md"],

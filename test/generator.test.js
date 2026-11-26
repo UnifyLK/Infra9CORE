@@ -119,9 +119,11 @@ test("renders workspace-aware SvelteKit Docker and CI contracts for every packag
       const destination = path.join(parent, packageManager);
       await generateProject({ destination, projectName: `${packageManager} workspace`, apps: ["sveltekit"], features: ["ci"], packageManager, git: false });
       const dockerfile = await readFile(path.join(destination, "apps/web/Dockerfile"), "utf8");
+      const dockerignore = await readFile(path.join(destination, ".dockerignore"), "utf8");
       const compose = await readFile(path.join(destination, "infra/docker/docker-compose.apps.yml"), "utf8");
       const ci = await readFile(path.join(destination, ".github/workflows/infrastructure-validation.yml"), "utf8");
       assert.match(dockerfile, /COPY \. \./);
+      assert.match(dockerignore, /\*\*\/node_modules/);
       assert.match(dockerfile, new RegExp(packageManager === "npm" ? "npm ci" : packageManager === "pnpm" ? "pnpm install --frozen-lockfile" : packageManager === "yarn" ? "yarn install --immutable" : "bun install --frozen-lockfile"));
       assert.match(compose, /context: \.\.\/\.\./);
       assert.match(compose, new RegExp(`PACKAGE_MANAGER: ${packageManager}`));

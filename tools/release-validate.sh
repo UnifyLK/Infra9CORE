@@ -48,6 +48,12 @@ node ./bin/create-infra9core.js "$audit_project" \
 
 node "$audit_project/tools/infra9core-configure.mjs" --yes
 
+# A generated project intentionally starts without a lockfile so the project
+# owner can review its resolved dependency graph. The release audit owns that
+# bootstrap step, then exercises the same frozen-install contract used by the
+# generated Dockerfile and CI workflow.
+corepack pnpm@10.15.1 --dir "$audit_project" install --no-frozen-lockfile
+
 node --input-type=module - "$audit_project/infra/env/.env" <<'NODE'
 import { readFile, writeFile } from "node:fs/promises";
 const target = process.argv[2];
@@ -91,10 +97,9 @@ for service_port in web:3000 api-python:8080 api-go:8080 api-rust:8080; do
   curl --fail --silent --show-error "http://127.0.0.1:${host_port}/health" >/dev/null
 done
 "${audit_compose[@]}" down --remove-orphans
-corepack pnpm --dir "$audit_project" install --frozen-lockfile=false
-corepack pnpm --dir "$audit_project" lint
-corepack pnpm --dir "$audit_project" typecheck
-corepack pnpm --dir "$audit_project" test
+corepack pnpm@10.15.1 --dir "$audit_project" lint
+corepack pnpm@10.15.1 --dir "$audit_project" typecheck
+corepack pnpm@10.15.1 --dir "$audit_project" test
 
 python3 -m venv "$python_venv"
 "$python_venv/bin/pip" install -e "$audit_project/apps/api-python[dev]"
