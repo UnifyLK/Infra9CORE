@@ -217,12 +217,13 @@ For a new version, update `package.json` and `CHANGELOG.md`, merge reviewed work
 into `main`, then run:
 
 ```bash
-make release CONFIRM_RELEASE=1
+make release
 ```
 
-This guarded command validates, tags, creates the GitHub Release, waits for
-trusted npm publishing, and confirms the published version. It refuses dirty,
-stale, non-`main`, already-tagged, or already-published releases.
+This command displays the package and version, then requires `publish` as an
+interactive confirmation before it validates, tags, creates the GitHub Release,
+waits for trusted npm publishing, and confirms the published version. It
+refuses dirty, stale, non-`main`, already-tagged, or already-published releases.
 
 Before every release, complete the advisory
 [SarvaOps upstream reference review](docs/upstream-reference-review.md). SarvaOps

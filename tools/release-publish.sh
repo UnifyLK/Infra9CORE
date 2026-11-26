@@ -13,7 +13,7 @@ for command_name in git gh npm node; do
   command -v "$command_name" >/dev/null 2>&1 || die "required command is unavailable: $command_name"
 done
 
-[[ "${CONFIRM_RELEASE:-}" == "1" ]] || die "run: make release CONFIRM_RELEASE=1"
+[[ "${CONFIRM_RELEASE:-}" == "1" ]] || die "run: make release and type 'publish' at the confirmation prompt"
 [[ "$(git branch --show-current)" == "main" ]] || die "releases must be run from local main"
 [[ -z "$(git status --porcelain)" ]] || die "working tree is not clean"
 

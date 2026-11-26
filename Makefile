@@ -59,5 +59,11 @@ pr-merge: ## Merge PR and update main (PR=123 CONFIRM_MERGE=1 METHOD=squash)
 release-validate: ## Run the complete local multi-stack release gate
 	@bash tools/release-validate.sh
 
-release: ## Validate, tag, release, publish, and verify (requires CONFIRM_RELEASE=1)
-	@bash tools/release-publish.sh
+release: ## Prompt, then validate, tag, release, publish, and verify
+	@package_name="$$(node -p "require('./package.json').name")"; \
+	version="$$(node -p "require('./package.json').version")"; \
+	if [[ "$${CONFIRM_RELEASE:-}" != "1" ]]; then \
+		read -r -p "Publish $${package_name}@$${version}? Type 'publish' to continue: " confirmation; \
+		[[ "$$confirmation" == "publish" ]] || { echo "Release cancelled." >&2; exit 1; }; \
+	fi; \
+	CONFIRM_RELEASE=1 bash tools/release-publish.sh

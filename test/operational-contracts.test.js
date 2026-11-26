@@ -26,3 +26,9 @@ test('bootstraps the generated workspace lockfile before Docker release validati
   assert.ok(install < build, 'lockfile bootstrap must precede frozen Docker installation');
   assert.match(script, /corepack pnpm@10\.15\.1 --dir "\$audit_project" (?:install|lint|typecheck|test)/);
 });
+
+test('requires an explicit interactive confirmation before a release', async () => {
+  const makefile = await readFile(path.resolve('Makefile'), 'utf8');
+  assert.match(makefile, /Type 'publish' to continue/);
+  assert.match(makefile, /CONFIRM_RELEASE=1 bash tools\/release-publish\.sh/);
+});

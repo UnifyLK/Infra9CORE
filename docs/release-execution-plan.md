@@ -58,13 +58,14 @@ values in the repository or shell history.
 After review and explicit authorization:
 
 ```bash
-make release CONFIRM_RELEASE=1
+make release
 ```
 
-The guarded command refuses a dirty or stale checkout, an existing tag, or an
+The command displays the package and version, then requires the release owner
+to type `publish`. It refuses a dirty or stale checkout, an existing tag, or an
 existing npm version. It validates again, creates and pushes the annotated tag,
 creates the GitHub Release, waits for the publish workflow, and confirms npm
-registry availability.
+registry availability. Non-interactive automation must set `CONFIRM_RELEASE=1`.
 
 ## Post-publication evidence
 
