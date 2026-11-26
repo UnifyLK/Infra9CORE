@@ -6,6 +6,7 @@ import {
   PACKAGE_MANAGER_VERSIONS,
 } from "./constants.js";
 import { createApplications } from "./app-recipes.js";
+import { createApplicationRegistration, registrationFileName } from "./application-registry.js";
 import { assertDestination, copyPath, replaceInFile, writeText } from "./files.js";
 import { runCommand } from "./process.js";
 
@@ -104,7 +105,7 @@ async function applyBackendProfile(root, backend) {
   for (const script of ["db-backup.sh", "db-migrate.sh", "db-restore.sh", "db-rollback.sh"]) {
     await rm(path.join(root, "infra", "scripts", script), { force: true });
   }
-  for (const file of ["AGENTS.md", "Makefile", "docs/README.md", "docs/adr/0001-product-agnostic-infrastructure-baseline.md", "docs/runbooks/deployment.md", "docs/runbooks/backup-restore.md", "infra/env/.env.example", "infra/docker/docker-compose.yml", "infra/caddy/Caddyfile.example", "infra/scripts/doctor.sh", "infra/scripts/env-init.sh", "tools/validate.sh", "tools/infra9core-configure.mjs"]) {
+  for (const file of ["AGENTS.md", "Makefile", "docs/README.md", "docs/adr/0001-product-agnostic-infrastructure-baseline.md", "docs/runbooks/deployment.md", "docs/runbooks/backup-restore.md", "infra/env/.env.example", "infra/docker/docker-compose.yml", "infra/caddy/Caddyfile.example", "infra/scripts/doctor.sh", "infra/scripts/env-init.sh", "tools/validate.sh", "tools/infra9core-configure.mjs", "tools/infra9core-app.mjs"]) {
     await copyPath(path.join(projectTemplates, backend, file), path.join(root, file));
   }
   await copyPath(path.join(projectTemplates, backend, "firebase"), path.join(root, "firebase"));
@@ -118,7 +119,7 @@ function generatedPackage(config, apps) {
     private: true,
     engines: { node: ">=24 <25" },
     packageManager: `${config.packageManager}@${PACKAGE_MANAGER_VERSIONS[config.packageManager]}`,
-    ...(config.packageManager !== "pnpm" ? { workspaces: ["apps/*", "packages/*"] } : {}),
+    ...(config.packageManager !== "pnpm" ? { workspaces: ["apps/**", "packages/*"] } : {}),
     scripts: hasJavaScript ? {
       build: "turbo run build",
       dev: "turbo run dev",
@@ -134,7 +135,7 @@ function generatedPackage(config, apps) {
 async function createWorkspaceFiles(root, config, apps) {
   await writeText(path.join(root, "package.json"), generatedPackage(config, apps));
   if (config.packageManager === "pnpm") {
-    await writeText(path.join(root, "pnpm-workspace.yaml"), "packages:\n  - apps/*\n  - packages/*");
+    await writeText(path.join(root, "pnpm-workspace.yaml"), "packages:\n  - apps/**\n  - packages/*\n");
   }
   if (apps.some(({ type }) => ["sveltekit", "tauri"].includes(type))) {
     await writeText(path.join(root, "turbo.json"), JSON.stringify({
@@ -193,12 +194,20 @@ async function createManifest(root, config, apps) {
       apps: config.apps,
       backend: config.backend,
       appDirectories,
+      applicationRegistry: { directory: ".infra9core/apps", schemaVersion: 1 },
       features: config.features,
       packageManager: config.packageManager,
       organizationId: config.organizationId,
       flutterPlatforms: config.flutterPlatforms,
     },
   }, null, 2));
+}
+
+async function createApplicationRegistry(root, apps) {
+  for (const app of apps) {
+    const registration = createApplicationRegistration({ id: app.name, appPath: `apps/${app.name}`, type: app.type });
+    await writeText(path.join(root, ".infra9core", "apps", registrationFileName(app.name)), JSON.stringify(registration, null, 2) + "\n");
+  }
 }
 
 async function createFirstRunConfiguration(root, config) {
@@ -244,12 +253,13 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
   await createApplicationRuntime(config.destination, apps, config.backend);
   await createProjectReadme(config.destination, config, apps);
   await createManifest(config.destination, config, apps);
+  await createApplicationRegistry(config.destination, apps);
   await createFirstRunConfiguration(config.destination, config);
   await replaceInFile(path.join(config.destination, "infra/env/.env.example"), [
     ["PROJECT_SLUG=change-me", `PROJECT_SLUG=${config.slug}`],
     ["COMPOSE_PROJECT_NAME=change-me", `COMPOSE_PROJECT_NAME=${config.slug}`],
   ]);
-  for (const script of ["tools/validate.sh", "tools/infra9core-configure.mjs", ...(config.backend === "supabase" ? ["infra/supabase/volumes/api/kong-entrypoint.sh"] : [])]) {
+  for (const script of ["tools/validate.sh", "tools/infra9core-configure.mjs", ...(config.backend === "firebase" ? ["tools/infra9core-app.mjs"] : []), ...(config.backend === "supabase" ? ["infra/supabase/volumes/api/kong-entrypoint.sh"] : [])]) {
     await chmod(path.join(config.destination, script), 0o755);
   }
   const scripts = await import("node:fs/promises").then(({ readdir }) => readdir(path.join(config.destination, "infra/scripts")));

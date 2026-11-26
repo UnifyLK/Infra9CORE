@@ -32,6 +32,37 @@ test("doctor accepts a Firebase project and rejects an added Supabase runtime", 
   } finally { await rm(parent, { recursive: true, force: true }); }
 });
 
+test("doctor validates nested application registrations without permitting traversal", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-doctor-registry-"));
+  const destination = path.join(parent, "project");
+  try {
+    await generateProject({ destination, projectName: "Firebase Project", backend: "firebase", apps: [], features: [], packageManager: "npm", git: false });
+    await mkdir(path.join(destination, "apps", "services", "tenant-portal"), { recursive: true });
+    await mkdir(path.join(destination, ".infra9core", "apps"), { recursive: true });
+    await writeFile(path.join(destination, ".infra9core", "apps", "tenant-portal.json"), JSON.stringify({ schemaVersion: 1, id: "tenant-portal", path: "apps/services/tenant-portal", type: "sveltekit", capabilities: [], dependencies: [], firebase: { firestoreDatabase: "tenant-portal" } }));
+    const accepted = await inspectProject(destination);
+    assert.ok(accepted.findings.every((finding) => finding.startsWith("generated project requires Node.js 24.x")));
+    await writeFile(path.join(destination, ".infra9core", "apps", "tenant-portal.json"), JSON.stringify({ schemaVersion: 1, id: "tenant-portal", path: "apps/../outside", type: "sveltekit", capabilities: [], dependencies: [] }));
+    const rejected = await inspectProject(destination);
+    assert.ok(rejected.findings.some((finding) => finding.includes("path must be a relative apps/ path without traversal")));
+  } finally { await rm(parent, { recursive: true, force: true }); }
+});
+
+test("doctor rejects duplicate Firebase resource ownership in registrations", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-doctor-resource-conflict-"));
+  const destination = path.join(parent, "project");
+  try {
+    await generateProject({ destination, projectName: "Firebase Project", backend: "firebase", apps: [], features: [], packageManager: "npm", git: false });
+    await mkdir(path.join(destination, ".infra9core", "apps"), { recursive: true });
+    for (const id of ["tenant-portal", "admin-portal"]) {
+      await mkdir(path.join(destination, "apps", id), { recursive: true });
+      await writeFile(path.join(destination, ".infra9core", "apps", `${id}.json`), JSON.stringify({ schemaVersion: 1, id, path: `apps/${id}`, type: "sveltekit", capabilities: [], dependencies: [], firebase: { firestoreDatabase: "tenant-data" } }));
+    }
+    const result = await inspectProject(destination);
+    assert.ok(result.findings.some((finding) => finding.includes("Firebase firestoreDatabase is claimed by both")));
+  } finally { await rm(parent, { recursive: true, force: true }); }
+});
+
 test("doctor enforces the Supabase product/runtime split", async () => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-doctor-supabase-"));
   const destination = path.join(parent, "project");

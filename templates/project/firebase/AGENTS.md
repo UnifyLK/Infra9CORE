@@ -6,6 +6,10 @@ backend profile. Read this file before changing structure or operations.
 ## Repository ownership
 
 - `apps/` contains deployable product applications.
+- `.infra9core/apps/*.json` is the source-controlled application registry. It
+  records each application's stable identity, path, capabilities, dependencies,
+  and optional Firebase resource mappings. It is infrastructure configuration,
+  not runtime business configuration or a credential store.
 - `packages/` contains reusable application packages; `shared/` contains pure
   domain contracts with no Firebase SDK, HTTP, or Docker dependency.
 - `firebase/` contains Firebase Functions, Firestore rules/indexes, Storage
@@ -26,5 +30,10 @@ backend profile. Read this file before changing structure or operations.
   `.firebaserc.example` are configuration templates, not production identity.
 - Define API contracts before Functions/Cloud Run adapters. Record material
   Firebase data-model or security-rule decisions in append-only ADRs.
+- An application may depend on packages and shared contracts, never another
+  application. Use `make app-validate` before build or deployment work. Use
+  `make app-plan APP=...` to inspect an adoption-only plan; it never creates or
+  changes remote Firebase resources. Named Firestore database triggers require
+  2nd-generation Functions.
 - Docker images for product server services must use the approved private
   registry, digest pinning, scanning, and signing in production.

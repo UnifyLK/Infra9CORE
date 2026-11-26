@@ -70,6 +70,9 @@ test("Firebase profile generates a managed Firebase boundary without Supabase", 
     });
     const manifest = JSON.parse(await readFile(path.join(destination, ".infra9core/manifest.json"), "utf8"));
     assert.equal(manifest.project.backend, "firebase");
+    assert.deepEqual(manifest.project.applicationRegistry, { directory: ".infra9core/apps", schemaVersion: 1 });
+    const desktopRegistration = JSON.parse(await readFile(path.join(destination, ".infra9core/apps/desktop.json"), "utf8"));
+    assert.equal(desktopRegistration.path, "apps/desktop");
     await readFile(path.join(destination, "firebase/firebase.json"), "utf8");
     assert.match(await readFile(path.join(destination, "firebase/firestore.rules"), "utf8"), /allow read, write: if false/);
     await assert.rejects(() => readdir(path.join(destination, "supabase")), { code: "ENOENT" });
@@ -78,6 +81,16 @@ test("Firebase profile generates a managed Firebase boundary without Supabase", 
     assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /managed Firebase/i);
     await execute(process.execPath, ["tools/infra9core-configure.mjs", "--yes"], { cwd: destination });
     assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /emulator/i);
+    await execute(process.execPath, ["tools/infra9core-app.mjs", "create", "APP=tenant-portal", "GROUP=services", "TYPE=sveltekit", "FIRESTORE_DATABASE=tenant-portal", "FUNCTIONS_CODEBASE=tenant-portal", "HOSTING_TARGET=tenant-portal", "HOSTING_SITE=example-tenant-portal", "HOSTING_PUBLIC=apps/services/tenant-portal/build"], { cwd: destination });
+    await execute(process.execPath, ["tools/infra9core-app.mjs", "validate"], { cwd: destination });
+    const plan = await execute(process.execPath, ["tools/infra9core-app.mjs", "plan", "APP=tenant-portal"], { cwd: destination });
+    assert.match(plan.stdout, /firebase target:apply hosting tenant-portal example-tenant-portal/);
+    await execute(process.execPath, ["tools/infra9core-app.mjs", "firebase-config"], { cwd: destination });
+    const rendered = JSON.parse(await readFile(path.join(destination, "firebase/firebase.generated.json"), "utf8"));
+    assert.deepEqual(rendered.firestore[0].database, "tenant-portal");
+    assert.deepEqual(rendered.functions[0].codebase, "tenant-portal");
+    assert.deepEqual(rendered.hosting[0].target, "tenant-portal");
+    assert.match(await readFile(path.join(destination, "firebase/firestore/tenant-portal.rules"), "utf8"), /allow read, write: if false/);
   } finally { await rm(parent, { recursive: true, force: true }); }
 });
 

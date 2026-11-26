@@ -1,7 +1,8 @@
-import { lstat, readFile } from "node:fs/promises";
+import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { APP_DEFAULT_NAMES, APP_TYPES, BACKENDS, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
 import { deriveSarvaOpsPorts } from "./sarvaops-ports.js";
+import { resolveRegistrationPath, validateApplicationRegistration, validateApplicationRegistrationSet } from "./application-registry.js";
 
 const requiredDirectories = ["apps", "docs", "infra", "packages", "shared", "tools"];
 const requiredSupabaseDirectories = [
@@ -44,6 +45,28 @@ function validateManifest(manifest, findings) {
   }
   for (const app of project.apps ?? []) {
     if (project.appDirectories[app] !== APP_DEFAULT_NAMES[app]) findings.push(`manifest application directory is invalid: ${app}`);
+  }
+}
+
+async function validateApplicationRegistry(root, findings) {
+  const registry = path.join(root, ".infra9core", "apps");
+  if (await isDirectory(registry)) {
+    const seenIds = new Set();
+    const seenPaths = new Set();
+    const registrations = [];
+    for (const entry of await readdir(registry)) {
+      if (!entry.endsWith(".json")) continue;
+      try {
+        const registration = JSON.parse(await readFile(path.join(registry, entry), "utf8"));
+        registrations.push(registration);
+        for (const finding of validateApplicationRegistration(registration)) findings.push(`${entry}: ${finding}`);
+        if (seenIds.has(registration.id)) findings.push(`${entry}: duplicate application id`);
+        if (seenPaths.has(registration.path)) findings.push(`${entry}: duplicate application path`);
+        seenIds.add(registration.id); seenPaths.add(registration.path);
+        if (registration.path && !(await isDirectory(resolveRegistrationPath(root, registration)))) findings.push(`${entry}: registered application path is missing`);
+      } catch { findings.push(`${entry}: registration is invalid JSON`); }
+    }
+    for (const finding of validateApplicationRegistrationSet(registrations)) findings.push(`application registry: ${finding}`);
   }
 }
 
@@ -97,6 +120,7 @@ export async function inspectProject(projectPath) {
     return { root, manifest: null, findings, ok: false };
   }
   validateManifest(manifest, findings);
+  await validateApplicationRegistry(root, findings);
   let firstRunConfig;
   try {
     firstRunConfig = JSON.parse(await readFile(path.join(root, ".infra9core", "config.json"), "utf8"));

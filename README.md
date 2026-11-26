@@ -69,6 +69,15 @@ Dockerfiles and generated Compose services. Flutter and Tauri are client
 applications, so their device, emulator, and desktop packaging work remains
 platform-specific rather than a long-running server container.
 
+For multi-application ecosystems, generated projects maintain a schema-validated
+`.infra9core/apps/` registry. It supports nested application paths such as
+`apps/services/tenant-portal`, capability and package dependency declarations, and
+provider resource mappings without coupling one application to another. The
+Firebase profile adds `make app-create`, `make app-validate`, `make app-plan`,
+`make app-config`, and guarded `make app-deploy` commands. They register and
+validate source-controlled configuration; remote Firebase resource creation and
+production deployment remain explicit operator-approved actions.
+
 ## Backend profiles
 
 `supabase` is the default, self-hosted backend profile. It generates the
