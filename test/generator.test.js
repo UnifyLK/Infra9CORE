@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { execFile, spawnSync } from "node:child_process";
 import { promisify } from "node:util";
 import os from "node:os";
@@ -7,6 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { PACKAGE_MANAGER_VERSIONS } from "../src/constants.js";
 import { describePlan, generateProject } from "../src/generator.js";
+import { inspectReadinessUpgrade } from "../src/upgrade-diagnostics.js";
 
 const execute = promisify(execFile);
 
@@ -58,6 +59,92 @@ test("always creates the project structure contract", async () => {
   } finally {
     await rm(parent, { recursive: true, force: true });
   }
+});
+
+test("Firebase profile generates a managed Firebase boundary without Supabase", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-firebase-"));
+  const destination = path.join(parent, "firebase project");
+  try {
+    await generateProject({
+      destination, projectName: "Firebase Desktop", apps: ["tauri"], backend: "firebase",
+      features: [], packageManager: "npm", git: false,
+    });
+    const manifest = JSON.parse(await readFile(path.join(destination, ".infra9core/manifest.json"), "utf8"));
+    assert.equal(manifest.project.backend, "firebase");
+    assert.deepEqual(manifest.project.applicationRegistry, { directory: ".infra9core/apps", schemaVersion: 1 });
+    const desktopRegistration = JSON.parse(await readFile(path.join(destination, ".infra9core/apps/desktop.json"), "utf8"));
+    assert.equal(desktopRegistration.path, "apps/desktop");
+    const firebaseConfig = JSON.parse(await readFile(path.join(destination, "firebase/firebase.json"), "utf8"));
+    assert.equal("functions" in firebaseConfig, false);
+    assert.match(await readFile(path.join(destination, "firebase/firestore.rules"), "utf8"), /allow read, write: if false/);
+    await assert.rejects(() => readdir(path.join(destination, "supabase")), { code: "ENOENT" });
+    await assert.rejects(() => readdir(path.join(destination, "infra", "supabase")), { code: "ENOENT" });
+    await assert.rejects(() => readFile(path.join(destination, "infra/docker/docker-compose.yml")), { code: "ENOENT" });
+    await assert.rejects(() => readFile(path.join(destination, "apps", "desktop", "Dockerfile")), { code: "ENOENT" });
+    assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /managed Firebase/i);
+    await execute(process.execPath, ["tools/infra9core-configure.mjs", "--yes"], { cwd: destination });
+    assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /emulator/i);
+    await execute(process.execPath, ["tools/infra9core-app.mjs", "create", "APP=sample-app", "GROUP=services", "TYPE=sveltekit"], { cwd: destination });
+    await execute(process.execPath, ["tools/infra9core-app.mjs", "validate"], { cwd: destination });
+    const registration = JSON.parse(await readFile(path.join(destination, ".infra9core/apps/sample-app.json"), "utf8"));
+    assert.equal("firebase" in registration, false);
+    await assert.rejects(readFile(path.join(destination, "firebase/firebase.generated.json")), { code: "ENOENT" });
+  } finally { await rm(parent, { recursive: true, force: true }); }
+});
+
+test("Firebase validator excludes itself but still detects credential-shaped content", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-firebase-validator-"));
+  const destination = path.join(parent, "project");
+  const fakeBin = path.join(parent, "bin");
+  try {
+    await generateProject({ destination, projectName: "Firebase Validator", apps: [], backend: "firebase", features: [], packageManager: "npm", git: false });
+    await (await import("node:fs/promises")).mkdir(fakeBin);
+    const docker = path.join(fakeBin, "docker");
+    await writeFile(docker, "#!/usr/bin/env bash\nexit 0\n");
+    await chmod(docker, 0o755);
+    const env = { ...process.env, PATH: `${fakeBin}:${path.dirname(process.execPath)}:${process.env.PATH}` };
+    const clean = spawnSync("bash", ["tools/validate.sh"], { cwd: destination, encoding: "utf8", env });
+    assert.equal(clean.status, 0, clean.stderr);
+    await writeFile(path.join(destination, "credential-fixture.txt"), "BEGIN PRIVATE KEY");
+    const unsafe = spawnSync("bash", ["tools/validate.sh"], { cwd: destination, encoding: "utf8", env });
+    assert.notEqual(unsafe.status, 0);
+    assert.notEqual(unsafe.status, 0);
+  } finally { await rm(parent, { recursive: true, force: true }); }
+});
+
+test("renders workspace-aware SvelteKit Docker and CI contracts for every package manager", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-workspace-docker-"));
+  try {
+    for (const packageManager of Object.keys(PACKAGE_MANAGER_VERSIONS)) {
+      const destination = path.join(parent, packageManager);
+      await generateProject({ destination, projectName: `${packageManager} workspace`, apps: ["sveltekit"], features: ["ci"], packageManager, git: false });
+      const dockerfile = await readFile(path.join(destination, "apps/web/Dockerfile"), "utf8");
+      const dockerignore = await readFile(path.join(destination, ".dockerignore"), "utf8");
+      const compose = await readFile(path.join(destination, "infra/docker/docker-compose.apps.yml"), "utf8");
+      const ci = await readFile(path.join(destination, ".github/workflows/infrastructure-validation.yml"), "utf8");
+      assert.match(dockerfile, /COPY \. \./);
+      assert.match(dockerignore, /\*\*\/node_modules/);
+      assert.match(dockerfile, new RegExp(packageManager === "npm" ? "npm ci" : packageManager === "pnpm" ? "pnpm install --frozen-lockfile" : packageManager === "yarn" ? "yarn install --immutable" : "bun install --frozen-lockfile"));
+      assert.match(compose, /context: \.\.\/\.\./);
+      assert.match(compose, new RegExp(`PACKAGE_MANAGER: ${packageManager}`));
+      assert.match(compose, /NODE_IMAGE: \$\{NODE_IMAGE:-node:24-alpine\}/);
+      assert.match(ci, /actions\/setup-node/);
+      assert.match(ci, /ci-verify\.mjs install/);
+    }
+  } finally { await rm(parent, { recursive: true, force: true }); }
+});
+
+test("reports Git initialization explicitly and produces read-only upgrade advisories", async () => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-git-outcome-"));
+  const destination = path.join(parent, "project");
+  try {
+    const result = await generateProject({ destination, projectName: "Git Outcome", apps: ["sveltekit"], backend: "firebase", features: [], packageManager: "pnpm", git: false });
+    assert.deepEqual(result.git, { requested: false, initialized: false });
+    const manifest = JSON.parse(await readFile(path.join(destination, ".infra9core/manifest.json"), "utf8"));
+    const notices = await inspectReadinessUpgrade(destination, manifest);
+    assert.ok(notices.some((notice) => notice.includes("pnpm-lock.yaml")));
+    assert.ok(notices.some((notice) => notice.includes("self-scan")) === false);
+  } finally { await rm(parent, { recursive: true, force: true }); }
 });
 
 test("first-run configuration renders only managed non-secret files", async () => {

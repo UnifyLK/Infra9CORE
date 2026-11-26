@@ -3,6 +3,8 @@ set -Eeuo pipefail
 
 repo_root="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 cd "${repo_root}"
+source infra/scripts/lib.sh
+require_node_24
 
 for file in infra/scripts/*.sh; do
   bash -n "${file}"

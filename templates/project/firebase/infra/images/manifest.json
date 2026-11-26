@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Production approval evidence for Docker-owned application images only. Firebase-managed services are excluded.",
+  "images": []
+}

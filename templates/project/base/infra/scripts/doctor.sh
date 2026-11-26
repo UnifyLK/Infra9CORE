@@ -5,6 +5,7 @@ source "$(dirname "$0")/lib.sh"
 for command_name in docker openssl curl; do
   require_command "${command_name}"
 done
+require_node_24
 docker compose version >/dev/null 2>&1 || die "Docker Compose v2 is required"
 require_env
 
@@ -34,6 +35,7 @@ if [[ "${DEPLOY_ENV}" == "production" ]]; then
   done
   [[ -f "${REPO_ROOT}/infra/images/manifest.json" ]] || \
     die "Production image approval manifest is missing"
+  "${REPO_ROOT}/tools/container-policy.sh" validate
 fi
 
 compose config --quiet

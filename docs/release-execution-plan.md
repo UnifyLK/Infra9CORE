@@ -11,8 +11,8 @@ and GitHub release history.
 
 - Source: reviewed, clean `main` in `UnifyLK/Infra9CORE`.
 - Runtime: Node.js 24.x only (`>=24 <25`).
-- Current published version: `0.1.2`.
-- Intended next version: `0.1.3`.
+- Release candidate version: the version in the reviewed root `package.json`.
+- Release tag: `v` followed by that exact package version.
 - Publication: annotated Git tag, GitHub Release, and npm publication with
   provenance through the `Publish package` workflow.
 - Authority: the release owner reviews release evidence and explicitly approves
@@ -68,12 +68,12 @@ registry availability.
 
 ## Post-publication evidence
 
-1. Verify the GitHub Release, `v0.1.3` tag, npm version, and npm provenance.
+1. Verify the GitHub Release, matching version tag, npm version, and npm provenance.
 2. From a clean temporary directory, run an `npx` generation smoke test for the
    published version and execute the generated project's documented first-run
    commands.
-3. Update the dated release-readiness audit with final validation, merge, tag,
-   publication, and smoke-test evidence.
+3. Record final validation, merge, tag, publication, and smoke-test evidence
+   in the GitHub Release notes.
 4. Delete merged release-candidate branches according to the repository's
    retention policy.
 

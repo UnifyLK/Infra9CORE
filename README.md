@@ -28,7 +28,8 @@ apps/       deployable product applications
 packages/   reusable application packages
 shared/     pure domain contracts and utilities
 infra/      Docker Compose, native Caddy, environment templates, scripts, backups
-supabase/   product functions, migrations, rollbacks, and database assets
+supabase/   product functions, migrations, rollbacks, and database assets (Supabase profile)
+firebase/   rules, indexes, Functions, and Emulator Suite config (Firebase profile)
 tools/      repository automation and validation
 docs/       ADRs, API contracts, architecture, and runbooks
 ```
@@ -38,7 +39,7 @@ is the permanent instruction set for humans and coding agents: it defines folder
 ownership, Docker/Caddy boundaries, secret handling, RLS, migration, and release
 rules.
 
-The Supabase split is deliberate: root `supabase/` contains product-owned Edge
+The Supabase split is deliberate for the default profile: root `supabase/` contains product-owned Edge
 Functions, migrations, and rollbacks; `infra/supabase/volumes/` contains only
 self-hosted Kong/API and database-bootstrap runtime internals.
 
@@ -68,6 +69,23 @@ Dockerfiles and generated Compose services. Flutter and Tauri are client
 applications, so their device, emulator, and desktop packaging work remains
 platform-specific rather than a long-running server container.
 
+For multi-application ecosystems, generated projects maintain a schema-validated
+`.infra9core/apps/` registry. It supports nested application paths, technology
+metadata, capability declarations, and package dependencies without coupling one
+application to another. It never assigns provider resources to an application.
+Products own their Firebase database topology, Functions codebases, Hosting
+targets, authorization policies, and deployment selection in native,
+version-controlled Firebase configuration.
+
+## Backend profiles
+
+`supabase` is the default, self-hosted backend profile. It generates the
+Supabase/Kong/Studio runtime, migrations, rollback conventions, and RLS
+guardrails. `firebase` is an explicit managed-service profile: it generates
+Firebase Auth/Firestore/Storage/Functions boundaries, deny-by-default rules,
+Emulator Suite configuration, and Firebase deployment guidance. It does not
+generate self-hosted Firebase-compatible infrastructure.
+
 ## Create a project
 
 Interactive use:
@@ -81,6 +99,7 @@ Non-interactive use, suitable for an agent or scripted bootstrap:
 ```bash
 npx @unifyit/create-infra9core@latest my-product \
   --apps sveltekit,flutter,python \
+  --backend supabase \
   --features ci \
   --package-manager pnpm \
   --organization-id com.example \
@@ -89,6 +108,20 @@ npx @unifyit/create-infra9core@latest my-product \
 
 Use `--dry-run` to preview generation, `--no-git` to skip Git initialization,
 and `create-infra9core --help` for all options.
+
+For a Tauri app using Firebase:
+
+```bash
+npx @unifyit/create-infra9core@latest my-desktop-app \
+  --apps tauri \
+  --backend firebase \
+  --features ci \
+  --yes
+```
+
+The Firebase profile expects the official Firebase CLI (`firebase-tools`) to be
+installed or available in the project toolchain. `make firebase-emulators` is
+for local integration work; production Firebase services remain managed.
 
 ## First run: configure, then operate
 

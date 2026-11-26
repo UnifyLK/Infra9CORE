@@ -16,3 +16,13 @@ test('emits a versioned SarvaOps allocation artifact without accepting overwrite
     await assert.rejects(() => emitSarvaOpsPortAllocation({ projectNumber: 12, environment: 'production', output }), { code: 'EEXIST' });
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+test('bootstraps the generated workspace lockfile before Docker release validation', async () => {
+  const script = await readFile(path.resolve('tools/release-validate.sh'), 'utf8');
+  const install = script.indexOf('corepack pnpm@10.15.1 --dir "$audit_project" install --no-frozen-lockfile');
+  const build = script.indexOf('"${audit_compose[@]}" build web api-python api-go api-rust');
+  assert.ok(install >= 0, 'release validation must create the authoritative pnpm lockfile');
+  assert.ok(build >= 0, 'release validation must build generated Docker services');
+  assert.ok(install < build, 'lockfile bootstrap must precede frozen Docker installation');
+  assert.match(script, /corepack pnpm@10\.15\.1 --dir "\$audit_project" (?:install|lint|typecheck|test)/);
+});

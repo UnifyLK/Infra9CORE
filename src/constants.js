@@ -9,6 +9,8 @@ export const APP_TYPES = [
 ];
 
 export const FEATURES = ["ci"];
+export const BACKENDS = ["supabase", "firebase"];
+export const CONTAINERIZATIONS = ["none", "docker-compose"];
 export const PACKAGE_MANAGERS = ["pnpm", "npm", "yarn", "bun"];
 
 // Turborepo requires a package-manager declaration for every JavaScript
@@ -23,6 +25,7 @@ export const PACKAGE_MANAGER_VERSIONS = Object.freeze({
 export const FLUTTER_PLATFORMS = ["android", "ios", "web", "linux", "macos", "windows"];
 
 export const DEFAULTS = Object.freeze({
+  backend: "supabase",
   apps: ["sveltekit"],
   features: [...FEATURES],
   packageManager: "pnpm",
