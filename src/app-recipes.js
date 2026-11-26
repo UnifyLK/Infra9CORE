@@ -38,6 +38,8 @@ export async function createApplications(root, appTypes, projectName, projectSlu
     PROJECT_SNAKE: projectSlug.replaceAll("-", "_"),
     PROJECT_COMPACT: projectSlug.replaceAll("-", ""),
     ORGANIZATION_ID: options.organizationId ?? "com.example",
+    PACKAGE_MANAGER: options.packageManager ?? "pnpm",
+    PACKAGE_MANAGER_VERSION: options.packageManagerVersion ?? "",
   };
 
   for (const type of appTypes) {
@@ -54,7 +56,7 @@ export async function createApplications(root, appTypes, projectName, projectSlu
       ], root);
     }
     await copyPath(path.join(appTemplates, type), destination);
-    await renderDirectory(destination, variables);
+    await renderDirectory(destination, { ...variables, APP_NAME: name, APP_PATH: `apps/${name}` });
     created.push({ type, name });
   }
   return created;

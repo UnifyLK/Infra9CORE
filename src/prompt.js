@@ -1,6 +1,6 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { APP_TYPES, BACKENDS, DEFAULTS, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
+import { APP_TYPES, BACKENDS, CONTAINERIZATIONS, DEFAULTS, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
 
 function list(value) {
   return value.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
@@ -32,6 +32,7 @@ export async function collectInteractiveOptions(initial) {
       DEFAULTS.features.join(","),
     ));
     const backend = initial.backend ?? await ask(rl, `Backend [${BACKENDS.join(", ")}]`, DEFAULTS.backend);
+    const containerization = initial.containerization ?? await ask(rl, `Containerization [${CONTAINERIZATIONS.join(", ")}]`, backend === "firebase" ? "none" : "docker-compose");
     const packageManager = initial.packageManager ?? await ask(
       rl,
       `Package manager [${PACKAGE_MANAGERS.join(", ")}]`,
@@ -55,6 +56,7 @@ export async function collectInteractiveOptions(initial) {
       apps,
       features,
       backend,
+      containerization,
       packageManager,
       organizationId,
       flutterPlatforms,

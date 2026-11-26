@@ -10,6 +10,7 @@ export const APP_TYPES = [
 
 export const FEATURES = ["ci"];
 export const BACKENDS = ["supabase", "firebase"];
+export const CONTAINERIZATIONS = ["none", "docker-compose"];
 export const PACKAGE_MANAGERS = ["pnpm", "npm", "yarn", "bun"];
 
 // Turborepo requires a package-manager declaration for every JavaScript

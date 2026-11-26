@@ -15,5 +15,13 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies from the authoritative lockfile
+        run: node tools/ci-verify.mjs install
+      - name: Run available application quality gates
+        run: node tools/ci-verify.mjs quality
       - name: Validate infrastructure
         run: ./tools/validate.sh

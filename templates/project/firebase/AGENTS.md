@@ -15,8 +15,10 @@ backend profile. Read this file before changing structure or operations.
 - `firebase/` contains Firebase Functions, Firestore rules/indexes, Storage
   rules, and Emulator Suite configuration. Firebase is managed by Google; do
   not create a self-hosted Firebase-compatible runtime.
-- `infra/` owns Docker Compose only for selected server apps, native Caddy,
-  environment templates, and operational scripts.
+- `infra/` contains only capabilities selected at generation time. Native
+  Firebase projects use the Emulator Suite and must not add Docker, Compose,
+  Caddy, registry, or container-policy requirements without an explicit
+  containerization decision.
 - `docs/` contains ADRs, OpenAPI contracts, security-rule decisions, and
   runbooks. The root Makefile is the operational interface.
 
@@ -35,5 +37,7 @@ backend profile. Read this file before changing structure or operations.
   `make app-plan APP=...` to inspect an adoption-only plan; it never creates or
   changes remote Firebase resources. Named Firestore database triggers require
   2nd-generation Functions.
-- Docker images for product server services must use the approved private
-  registry, digest pinning, scanning, and signing in production.
+- When `project.containerization` is `docker-compose`, Docker images for product
+  server services must use the approved private registry, digest pinning,
+  scanning, and signing in production. These controls never apply to
+  Firebase-managed services.

@@ -1,6 +1,6 @@
 import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
-import { APP_DEFAULT_NAMES, APP_TYPES, BACKENDS, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
+import { APP_DEFAULT_NAMES, APP_TYPES, BACKENDS, CONTAINERIZATIONS, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
 import { deriveSarvaOpsPorts } from "./sarvaops-ports.js";
 import { resolveRegistrationPath, validateApplicationRegistration, validateApplicationRegistrationSet } from "./application-registry.js";
 
@@ -37,6 +37,9 @@ function validateManifest(manifest, findings) {
   if (!project || typeof project !== "object" || Array.isArray(project)) return findings.push("manifest project metadata is invalid");
   if (!isStringArray(project.apps, APP_TYPES)) findings.push("manifest application recipes are invalid");
   if (!BACKENDS.includes(project.backend ?? "supabase")) findings.push("manifest backend profile is invalid");
+  const containerization = project.containerization ?? (project.backend === "firebase" ? "docker-compose" : "docker-compose");
+  if (!CONTAINERIZATIONS.includes(containerization)) findings.push("manifest containerization capability is invalid");
+  if (project.backend === "supabase" && containerization !== "docker-compose") findings.push("Supabase requires docker-compose containerization");
   if (!isStringArray(project.features, FEATURES)) findings.push("manifest features are invalid");
   if (!PACKAGE_MANAGERS.includes(project.packageManager)) findings.push("manifest package manager is invalid");
   if (!project.appDirectories || typeof project.appDirectories !== "object" || Array.isArray(project.appDirectories)) {

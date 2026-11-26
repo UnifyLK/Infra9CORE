@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { APP_TYPES, BACKENDS, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
+import { APP_TYPES, BACKENDS, CONTAINERIZATIONS, FEATURES, PACKAGE_MANAGERS } from "./constants.js";
 
 function commaList(value) {
   if (value.trim().toLowerCase() === "none") return [];
@@ -28,6 +28,7 @@ export function parseCliArguments(argv) {
       features: { type: "string", short: "f" },
       "package-manager": { type: "string", short: "p" },
       backend: { type: "string" },
+      containerization: { type: "string" },
       "organization-id": { type: "string" },
       "flutter-platforms": { type: "string" },
       yes: { type: "boolean", short: "y", default: false },
@@ -49,6 +50,7 @@ export function parseCliArguments(argv) {
     throw new Error(`Unknown package manager: ${values["package-manager"]}`);
   }
   if (values.backend && !BACKENDS.includes(values.backend)) throw new Error(`Unknown backend: ${values.backend}. Allowed: ${BACKENDS.join(", ")}`);
+  if (values.containerization && !CONTAINERIZATIONS.includes(values.containerization)) throw new Error(`Unknown containerization: ${values.containerization}. Allowed: ${CONTAINERIZATIONS.join(", ")}`);
 
   return {
     destination: positionals[0],
@@ -57,6 +59,7 @@ export function parseCliArguments(argv) {
     features,
     packageManager: values["package-manager"],
     backend: values.backend,
+    containerization: values.containerization,
     organizationId: values["organization-id"],
     flutterPlatforms: values["flutter-platforms"] ? commaList(values["flutter-platforms"]) : undefined,
     yes: values.yes,

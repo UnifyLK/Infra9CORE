@@ -5,11 +5,24 @@ COMPOSE := docker compose --env-file infra/env/.env -f infra/docker/docker-compo
 
 .PHONY: help infra9core env doctor validate config up down restart ps logs migrate rollback backup restore build clean
 
+##@ Getting started
+
 help: ## Show available commands
-	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@{ \
+		if [ -t 1 ] && [ "$${TERM:-dumb}" != "dumb" ] && [ -z "$${NO_COLOR:-}" ]; then \
+			title="$$(printf '\033[1;36m')"; section="$$(printf '\033[1;34m')"; command="$$(printf '\033[0;32m')"; reset="$$(printf '\033[0m')"; \
+		fi; \
+		awk -v title="$$title" -v section="$$section" -v command="$$command" -v reset="$$reset" ' \
+			BEGIN { FS = ":.*## "; printf "%sUsage:%s make <target>\n", title, reset } \
+			/^##@ / { printf "\n%s%s%s\n", section, substr($$0, 5), reset; next } \
+			/^[a-zA-Z0-9_-]+:.*## / { printf "  %s%-18s%s %s\n", command, $$1, reset, $$2 } \
+		' $(MAKEFILE_LIST); \
+	}
 
 infra9core: ## Configure tracked infrastructure and generate the coding-agent brief
 	@node tools/infra9core-configure.mjs
+
+##@ Local environment
 
 env: ## Create local environment configuration without overwriting it
 	@infra/scripts/env-init.sh
@@ -22,6 +35,8 @@ validate: ## Run repository-static quality gates
 
 config: ## Validate and render the Docker Compose configuration
 	@infra/scripts/compose.sh config --quiet
+
+##@ Stack operations
 
 up: ## Start the infrastructure stack
 	@infra/scripts/compose.sh up --detach --remove-orphans
@@ -40,6 +55,8 @@ ps: ## Show service status
 logs: ## Follow service logs (SERVICE=name is optional)
 	@infra/scripts/logs.sh "$(SERVICE)"
 
+##@ Database operations
+
 migrate: ## Apply pending forward migrations
 	@infra/scripts/db-migrate.sh
 
@@ -51,6 +68,8 @@ backup: ## Create a timestamped PostgreSQL backup
 
 restore: ## Restore a backup (BACKUP=/absolute/path/file.dump)
 	@infra/scripts/db-restore.sh "$(BACKUP)"
+
+##@ Cleanup
 
 clean: ## Remove stopped containers and local build output; keep volumes/data
 	@infra/scripts/compose.sh rm --force --stop

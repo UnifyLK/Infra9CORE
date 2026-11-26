@@ -21,6 +21,13 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || die "Required command is unavailable: $1"
 }
 
+require_node_24() {
+  require_command node
+  local major
+  major="$(node --version | sed -E 's/^v([0-9]+).*/\1/')"
+  [[ "${major}" == "24" ]] || die "Node.js 24.x is required; found $(node --version)"
+}
+
 require_env() {
   [[ -f "${ENV_FILE}" ]] || die "Missing infra/env/.env; run make env"
 }

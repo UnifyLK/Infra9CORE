@@ -2,7 +2,7 @@ import { chmod, mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  APP_TYPES, BACKENDS, DEFAULTS, FEATURES, FLUTTER_PLATFORMS, PACKAGE_MANAGERS,
+  APP_TYPES, BACKENDS, CONTAINERIZATIONS, DEFAULTS, FEATURES, FLUTTER_PLATFORMS, PACKAGE_MANAGERS,
   PACKAGE_MANAGER_VERSIONS,
 } from "./constants.js";
 import { createApplications } from "./app-recipes.js";
@@ -41,12 +41,15 @@ export function normalizeOptions(options, cwd = process.cwd()) {
   const features = unique(options.features ?? DEFAULTS.features);
   const packageManager = options.packageManager ?? DEFAULTS.packageManager;
   const backend = options.backend ?? DEFAULTS.backend;
+  const containerization = options.containerization ?? (backend === "firebase" ? "none" : "docker-compose");
   const unknownApps = apps.filter((item) => !APP_TYPES.includes(item));
   const unknownFeatures = features.filter((item) => !FEATURES.includes(item));
   if (unknownApps.length) throw new Error(`Unknown application type: ${unknownApps.join(", ")}`);
   if (unknownFeatures.length) throw new Error(`Unknown feature: ${unknownFeatures.join(", ")}`);
   if (!PACKAGE_MANAGERS.includes(packageManager)) throw new Error(`Unknown package manager: ${packageManager}`);
   if (!BACKENDS.includes(backend)) throw new Error(`Unknown backend: ${backend}`);
+  if (!CONTAINERIZATIONS.includes(containerization)) throw new Error(`Unknown containerization: ${containerization}`);
+  if (backend === "supabase" && containerization === "none") throw new Error("Supabase requires containerization=docker-compose in this release");
   const organizationId = options.organizationId ?? "com.example";
   if (!/^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(organizationId)) {
     throw new Error(`Invalid reverse-domain organization ID: ${organizationId}`);
@@ -63,6 +66,7 @@ export function normalizeOptions(options, cwd = process.cwd()) {
     features,
     packageManager,
     backend,
+    containerization,
     organizationId,
     flutterPlatforms,
   };
@@ -74,6 +78,7 @@ export function describePlan(config) {
     `Destination:    ${config.destination}`,
     `Applications:   ${config.apps.join(", ") || "none"}`,
     `Backend:        ${config.backend}`,
+    `Containers:     ${config.containerization}`,
     `Optional overlays: ${config.features.join(", ") || "none"}`,
     `Package manager:${config.packageManager}`,
     `Organization ID:${config.organizationId}`,
@@ -82,13 +87,16 @@ export function describePlan(config) {
   ].join("\n");
 }
 
-async function copyBaseline(root, features) {
-  for (const [source, destination] of baseFiles) {
+async function copyBaseline(root, features, config) {
+  const nativeFirebase = config.backend === "firebase" && config.containerization === "none";
+  const sources = nativeFirebase ? baseFiles.filter(([source]) => source !== "infra" && source !== "tools") : baseFiles;
+  for (const [source, destination] of sources) {
     await copyPath(
       path.join(projectTemplates, "base", source),
       path.join(root, destination),
     );
   }
+  if (nativeFirebase) await copyPath(path.join(projectTemplates, "base", "tools", "ci-verify.mjs"), path.join(root, "tools", "ci-verify.mjs"));
   if (features.includes("ci")) {
     await copyPath(
       path.join(projectTemplates, "features/github-ci/.github"),
@@ -97,18 +105,32 @@ async function copyBaseline(root, features) {
   }
 }
 
-async function applyBackendProfile(root, backend) {
+async function applyBackendProfile(root, backend, containerization) {
   if (backend === "supabase") return;
   await rm(path.join(root, "supabase"), { recursive: true, force: true });
   await rm(path.join(root, "infra", "supabase"), { recursive: true, force: true });
-  await rm(path.join(root, "infra", "images"), { recursive: true, force: true });
+  if (containerization === "docker-compose") await rm(path.join(root, "infra", "images"), { recursive: true, force: true });
   for (const script of ["db-backup.sh", "db-migrate.sh", "db-restore.sh", "db-rollback.sh"]) {
     await rm(path.join(root, "infra", "scripts", script), { force: true });
   }
-  for (const file of ["AGENTS.md", "Makefile", "docs/README.md", "docs/adr/0001-product-agnostic-infrastructure-baseline.md", "docs/runbooks/deployment.md", "docs/runbooks/backup-restore.md", "infra/env/.env.example", "infra/docker/docker-compose.yml", "infra/caddy/Caddyfile.example", "infra/scripts/doctor.sh", "infra/scripts/env-init.sh", "tools/validate.sh", "tools/infra9core-configure.mjs", "tools/infra9core-app.mjs"]) {
+  const firebaseFiles = ["AGENTS.md", "Makefile", "docs/README.md", "docs/adr/0001-product-agnostic-infrastructure-baseline.md", "docs/runbooks/deployment.md", "docs/runbooks/backup-restore.md", "infra/env/.env.example", "infra/scripts/doctor.sh", "infra/scripts/env-init.sh", "tools/validate.sh", "tools/infra9core-configure.mjs", "tools/infra9core-app.mjs"];
+  if (containerization === "docker-compose") firebaseFiles.push("infra/docker/docker-compose.yml", "infra/caddy/Caddyfile.example");
+  for (const file of firebaseFiles) {
     await copyPath(path.join(projectTemplates, backend, file), path.join(root, file));
   }
   await copyPath(path.join(projectTemplates, backend, "firebase"), path.join(root, "firebase"));
+  if (containerization === "docker-compose") await copyPath(path.join(projectTemplates, backend, "infra/images"), path.join(root, "infra/images"));
+  if (containerization === "none") {
+    await copyPath(path.join(projectTemplates, backend, "Makefile.native"), path.join(root, "Makefile"));
+    await copyPath(path.join(projectTemplates, backend, "tools/validate.native.sh"), path.join(root, "tools/validate.sh"));
+    await copyPath(path.join(projectTemplates, backend, "tools/infra9core-configure.native.mjs"), path.join(root, "tools/infra9core-configure.mjs"));
+    await copyPath(path.join(projectTemplates, backend, "infra/scripts/doctor.native.sh"), path.join(root, "infra/scripts/doctor.sh"));
+    await copyPath(path.join(projectTemplates, backend, "infra/env/.env.native.example"), path.join(root, "infra/env/.env.example"));
+    await copyPath(path.join(projectTemplates, "base", "infra/scripts/lib.sh"), path.join(root, "infra/scripts/lib.sh"));
+    for (const file of ["docs/README.md", "docs/adr/0001-product-agnostic-infrastructure-baseline.md", "docs/runbooks/deployment.md", "docs/runbooks/backup-restore.md", "docs/runbooks/generated-project-readiness-upgrade.md", "docs/runbooks/observability.md"]) {
+      await copyPath(path.join(projectTemplates, backend, "native-docs", file), path.join(root, file));
+    }
+  }
 }
 
 function generatedPackage(config, apps) {
@@ -152,17 +174,21 @@ async function createWorkspaceFiles(root, config, apps) {
   }
 }
 
-function runtimeService(app, index, backend) {
+function runtimeService(app, index, backend, packageManager) {
   const ports = { sveltekit: 3000, python: 8080, go: 8080, rust: 8080 };
   if (!(app.type in ports)) return null;
   const containerPort = ports[app.type];
   const hostPort = 3100 + index;
   const dependencies = backend === "supabase" ? ["  depends_on:", "    kong:", "      condition: service_started", "  networks: [backend]"] : [];
-  return [`${app.name}:`, "  build:", `    context: ../../apps/${app.name}`, "    dockerfile: Dockerfile", `  image: ${app.name}:local`, "  restart: unless-stopped", "  env_file:", "    - ../env/.env", ...dependencies, "  ports:", `    - \"127.0.0.1:${hostPort}:${containerPort}\"`, "  labels:", `    infra9core.role: \"${app.type}\"`].join("\n");
+  const build = app.type === "sveltekit"
+    ? ["  build:", "    context: ../..", `    dockerfile: apps/${app.name}/Dockerfile`, "    args:", `      APP_PATH: apps/${app.name}`, `      PACKAGE_MANAGER: ${packageManager}`, "      NODE_IMAGE: ${NODE_IMAGE:-node:24-alpine}"]
+    : ["  build:", `    context: ../../apps/${app.name}`, "    dockerfile: Dockerfile"];
+  return [`${app.name}:`, ...build, `  image: ${app.name}:local`, "  restart: unless-stopped", "  env_file:", "    - ../env/.env", ...dependencies, "  ports:", `    - \"127.0.0.1:${hostPort}:${containerPort}\"`, "  labels:", `    infra9core.role: \"${app.type}\"`].join("\n");
 }
 
-async function createApplicationRuntime(root, apps, backend) {
-  const services = apps.map((app, index) => runtimeService(app, index, backend)).filter(Boolean);
+async function createApplicationRuntime(root, apps, backend, packageManager, containerization) {
+  if (containerization === "none") return;
+  const services = apps.map((app, index) => runtimeService(app, index, backend, packageManager)).filter(Boolean);
   const content = services.length
     ? `# Generated by Infra9CORE. Application runtimes are Docker-owned.\nservices:\n${services.map((service) => service.split("\n").map((line) => `  ${line}`).join("\n")).join("\n\n")}\n`
     : "# Generated by Infra9CORE. No containerized server recipes were selected.\nservices: {}\n";
@@ -176,10 +202,13 @@ async function createProjectReadme(root, config, apps) {
   const overlays = config.features.map((feature) => `\`${feature}\``).join(", ") || "none";
   const developerHandoff = INITIAL_DEVELOPER_HANDOFF;
   const backendDescription = config.backend === "firebase"
-    ? "Firebase-managed Auth, Firestore, Storage, Functions, Emulator Suite configuration, Docker Compose for selected server applications, native Caddy, and observability."
+    ? (config.containerization === "none" ? "Firebase-managed Auth, Firestore, Storage, Functions, Hosting, and Emulator Suite configuration. Docker and Caddy are intentionally not generated." : "Firebase-managed services plus Docker Compose and native Caddy for explicitly selected product server applications.")
     : "Docker Compose, self-hosted Supabase, native Caddy, migrations, backup/restore, and observability.";
   const start = config.backend === "firebase" ? "make infra9core\nmake env # writes non-secret local Firebase project configuration\nmake doctor\nmake firebase-emulators" : "make infra9core\nmake env # prompts for every required local secret and setting\nmake doctor\nmake up\nmake migrate";
-  await writeText(path.join(root, "README.md"), `# ${config.projectName}\n\nGenerated with [Infra9CORE](https://github.com/UnifyLK/Infra9CORE).\n\n## Applications\n\n${appList}\n\n## Infrastructure\n\nBackend profile: \`${config.backend}\`. Core capabilities: ${backendDescription}\n\nOptional overlays: ${overlays}.\n\nProject identity, domains, ports, credentials, registry locations, and deployment targets belong in environment configuration. Never commit secrets.\n\n## First-run configuration\n\nRun \`make infra9core\` before starting services. It asks for non-secret deployment identity, previews its managed changes, and renders \`infra/env/.env.example\`, \`infra/caddy/Caddyfile\`, and \`docs/infra9core/FIRST_RUN_AGENT_PROMPT.md\`. The committed \`.infra9core/config.json\` is the non-secret configuration record; \`infra/env/.env\` remains local-only secret material.\n\n## First developer handoff\n\nBefore asking a coding agent to implement product features, give it this initial prompt:\n\n\`\`\`text\n${developerHandoff}\n\`\`\`\n\nReview that discovery output with the product owner before authorizing implementation. The generated \`AGENTS.md\` and first-run brief remain the agent's durable repository instructions after handoff.\n\n## Dependency bootstrap\n\nThis project pins ${config.packageManager} in \`package.json\`. Install dependencies with:\n\n\`\`\`bash\n${config.packageManager} install\n\`\`\`\n\nCommit the resulting lockfiles after reviewing them.\n\n## Start\n\n\`\`\`bash\n${start}\n\`\`\`\n`);
+  const firstRunOutputs = config.backend === "firebase" && config.containerization === "none"
+    ? "`infra/env/.env.example` and `docs/infra9core/FIRST_RUN_AGENT_PROMPT.md`. Docker, Compose, Caddy, image-registry, and container-policy files are intentionally absent."
+    : "`infra/env/.env.example`, `infra/caddy/Caddyfile`, and `docs/infra9core/FIRST_RUN_AGENT_PROMPT.md`.";
+  await writeText(path.join(root, "README.md"), `# ${config.projectName}\n\nGenerated with [Infra9CORE](https://github.com/UnifyLK/Infra9CORE).\n\n## Applications\n\n${appList}\n\n## Infrastructure\n\nBackend profile: \`${config.backend}\`. Containerization capability: \`${config.containerization}\`. Core capabilities: ${backendDescription}\n\nOptional overlays: ${overlays}.\n\nProject identity, domains, ports, credentials, registry locations, and deployment targets belong in environment configuration. Never commit secrets.\n\n## First-run configuration\n\nRun \`make infra9core\` before starting services. It asks for non-secret deployment identity, previews its managed changes, and renders ${firstRunOutputs} The committed \`.infra9core/config.json\` is the non-secret configuration record; \`infra/env/.env\` remains local-only secret material.\n\n## First developer handoff\n\nBefore asking a coding agent to implement product features, give it this initial prompt:\n\n\`\`\`text\n${developerHandoff}\n\`\`\`\n\nReview that discovery output with the product owner before authorizing implementation. The generated \`AGENTS.md\` and first-run brief remain the agent's durable repository instructions after handoff.\n\n## Dependency bootstrap\n\nThis project pins ${config.packageManager} in \`package.json\`. Install dependencies with:\n\n\`\`\`bash\n${config.packageManager} install\n\`\`\`\n\nCommit the resulting lockfiles after reviewing them.\n\n## Start\n\n\`\`\`bash\n${start}\n\`\`\`\n`);
 }
 
 async function createManifest(root, config, apps) {
@@ -193,6 +222,7 @@ async function createManifest(root, config, apps) {
       slug: config.slug,
       apps: config.apps,
       backend: config.backend,
+      containerization: config.containerization,
       appDirectories,
       applicationRegistry: { directory: ".infra9core/apps", schemaVersion: 1 },
       features: config.features,
@@ -219,7 +249,7 @@ async function createFirstRunConfiguration(root, config) {
   };
   await writeText(path.join(root, ".infra9core", "config.json"), JSON.stringify({
     schemaVersion: 1,
-    project: { name: config.projectName, slug: config.slug, apps: config.apps, backend: config.backend },
+    project: { name: config.projectName, slug: config.slug, apps: config.apps, backend: config.backend, containerization: config.containerization },
     deployment,
   }, null, 2));
 }
@@ -234,15 +264,16 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
   ]) {
     await mkdir(path.join(config.destination, directory), { recursive: true });
   }
-  await copyBaseline(config.destination, config.features);
-  await applyBackendProfile(config.destination, config.backend);
+  await copyBaseline(config.destination, config.features, config);
+  await applyBackendProfile(config.destination, config.backend, config.containerization);
   const apps = await createApplications(
     config.destination,
     config.apps,
     config.projectName,
     config.slug,
-    config,
+    { ...config, packageManagerVersion: PACKAGE_MANAGER_VERSIONS[config.packageManager] },
   );
+  if (config.containerization === "none") for (const app of apps) await rm(path.join(config.destination, "apps", app.name, "Dockerfile"), { force: true });
   await writeText(path.join(config.destination, "apps/.gitkeep"), "");
   await writeText(path.join(config.destination, "infra/.gitkeep"), "");
   await writeText(path.join(config.destination, "packages/.gitkeep"), "");
@@ -250,7 +281,7 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
   if (config.backend === "supabase") await writeText(path.join(config.destination, "supabase/functions/.gitkeep"), "");
   await writeText(path.join(config.destination, "tools/.gitkeep"), "");
   await createWorkspaceFiles(config.destination, config, apps);
-  await createApplicationRuntime(config.destination, apps, config.backend);
+  await createApplicationRuntime(config.destination, apps, config.backend, config.packageManager, config.containerization);
   await createProjectReadme(config.destination, config, apps);
   await createManifest(config.destination, config, apps);
   await createApplicationRegistry(config.destination, apps);
@@ -259,7 +290,7 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
     ["PROJECT_SLUG=change-me", `PROJECT_SLUG=${config.slug}`],
     ["COMPOSE_PROJECT_NAME=change-me", `COMPOSE_PROJECT_NAME=${config.slug}`],
   ]);
-  for (const script of ["tools/validate.sh", "tools/infra9core-configure.mjs", ...(config.backend === "firebase" ? ["tools/infra9core-app.mjs"] : []), ...(config.backend === "supabase" ? ["infra/supabase/volumes/api/kong-entrypoint.sh"] : [])]) {
+  for (const script of ["tools/validate.sh", "tools/ci-verify.mjs", ...(config.containerization === "docker-compose" ? ["tools/container-policy.sh"] : []), "tools/infra9core-configure.mjs", ...(config.backend === "firebase" ? ["tools/infra9core-app.mjs"] : []), ...(config.backend === "supabase" ? ["infra/supabase/volumes/api/kong-entrypoint.sh"] : [])]) {
     await chmod(path.join(config.destination, script), 0o755);
   }
   const scripts = await import("node:fs/promises").then(({ readdir }) => readdir(path.join(config.destination, "infra/scripts")));
@@ -267,13 +298,15 @@ export async function generateProject(rawOptions, cwd = process.cwd()) {
     await chmod(path.join(config.destination, "infra/scripts", script), 0o755);
   }
 
+  const git = { requested: Boolean(config.git), initialized: false };
   if (config.git) {
     await runCommand("git", ["init", "--initial-branch=main"], config.destination);
+    git.initialized = true;
   }
   if (config.install && apps.some(({ type }) => ["sveltekit", "tauri"].includes(type))) {
     await runCommand(config.packageManager, ["install"], config.destination);
   }
-  return { config, apps, created: true };
+  return { config, apps, git, created: true };
 }
 
 export async function packageVersion() {
