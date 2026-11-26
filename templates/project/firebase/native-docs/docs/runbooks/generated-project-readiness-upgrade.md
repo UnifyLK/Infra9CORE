@@ -13,6 +13,9 @@ generator update check to obtain read-only advisories. Decide deliberately:
    Firebase configuration, and `.infra9core/apps` registrations outside the
    generated replacement.
 
-Never overwrite an existing project automatically. Re-run `make app-validate`
-and `make app-config`, review rules and indexes in the Emulator Suite, and
-require normal change approval before Firebase deployment.
+Never overwrite an existing project automatically. Re-run `make app-validate`,
+review project-owned Firebase Rules and indexes in the Emulator Suite, and
+require normal change approval before Firebase deployment. Legacy application
+records with Firebase resource mappings remain readable but are deprecated;
+preserve those definitions in native Firebase configuration through a reviewed
+consumer migration.

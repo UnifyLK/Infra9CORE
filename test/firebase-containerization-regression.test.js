@@ -20,8 +20,8 @@ async function project(name, options = {}) {
   return { parent, destination };
 }
 
-async function createMappedApp(destination, id = "tenant-portal") {
-  return execute(process.execPath, ["tools/infra9core-app.mjs", "create", `APP=${id}`, "GROUP=services", "TYPE=sveltekit", `FIRESTORE_DATABASE=${id}`, `FUNCTIONS_CODEBASE=${id}`, `HOSTING_TARGET=${id}`, `HOSTING_SITE=example-${id}`, `HOSTING_PUBLIC=apps/services/${id}/build`], { cwd: destination });
+async function createGenericApp(destination, id = "sample-app") {
+  return execute(process.execPath, ["tools/infra9core-app.mjs", "create", `APP=${id}`, "GROUP=services", "TYPE=sveltekit"], { cwd: destination });
 }
 
 test("regression: default Firebase generation selects the native capability", async () => {
@@ -92,9 +92,11 @@ for (const containerization of ["none", "docker-compose"]) {
   test(`regression: application creation after Firebase ${containerization} generation`, async () => {
     const { parent, destination } = await project(`app-${containerization}`, { containerization });
     try {
-      await createMappedApp(destination);
+      await createGenericApp(destination);
       await execute(process.execPath, ["tools/infra9core-app.mjs", "validate"], { cwd: destination });
-      await readFile(path.join(destination, ".infra9core/apps/tenant-portal.json"), "utf8");
+      const registration = JSON.parse(await readFile(path.join(destination, ".infra9core/apps/sample-app.json"), "utf8"));
+      assert.equal("firebase" in registration, false);
+      await assert.rejects(readFile(path.join(destination, "firebase/firestore/sample-app.rules")), { code: "ENOENT" });
     } finally { await rm(parent, { recursive: true, force: true }); }
   });
 }
@@ -137,16 +139,16 @@ test("regression: upgrade diagnostics are read-only and identify legacy Firebase
   } finally { await rm(parent, { recursive: true, force: true }); }
 });
 
-test("regression: Firebase registry and selective deployment contracts are preserved", async () => {
+test("regression: Firebase registry remains generic and legacy resource mappings are advisory", async () => {
   const { parent, destination } = await project("Registry Preservation");
   try {
-    const rulesBefore = await readFile(path.join(destination, "firebase/firestore.rules"), "utf8");
-    await createMappedApp(destination);
-    const plan = await execute(process.execPath, ["tools/infra9core-app.mjs", "plan", "APP=tenant-portal"], { cwd: destination });
-    assert.match(plan.stdout, /createsRemoteResources": false/);
-    assert.match(plan.stdout, /firebase target:apply hosting tenant-portal example-tenant-portal/);
-    const deploy = await execute(process.execPath, ["tools/infra9core-app.mjs", "deploy", "APP=tenant-portal"], { cwd: destination }).catch((error) => error);
-    assert.match(deploy.stderr, /refusing deployment/);
-    assert.equal(await readFile(path.join(destination, "firebase/firestore.rules"), "utf8"), rulesBefore);
+    await createGenericApp(destination, "legacy-app");
+    const legacyPath = path.join(destination, ".infra9core/apps/legacy-app.json");
+    const legacyRegistration = JSON.parse(await readFile(legacyPath, "utf8"));
+    legacyRegistration.firebase = { firestoreDatabase: "legacy-data" };
+    await writeFile(legacyPath, JSON.stringify(legacyRegistration));
+    const manifest = JSON.parse(await readFile(path.join(destination, ".infra9core/manifest.json"), "utf8"));
+    const notices = await inspectReadinessUpgrade(destination, manifest);
+    assert.ok(notices.some((notice) => notice.includes("deprecated Firebase application-to-resource metadata")));
   } finally { await rm(parent, { recursive: true, force: true }); }
 });

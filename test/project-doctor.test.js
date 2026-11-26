@@ -48,7 +48,7 @@ test("doctor validates nested application registrations without permitting trave
   } finally { await rm(parent, { recursive: true, force: true }); }
 });
 
-test("doctor rejects duplicate Firebase resource ownership in registrations", async () => {
+test("doctor accepts legacy Firebase resource metadata without treating it as current topology", async () => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-doctor-resource-conflict-"));
   const destination = path.join(parent, "project");
   try {
@@ -59,7 +59,7 @@ test("doctor rejects duplicate Firebase resource ownership in registrations", as
       await writeFile(path.join(destination, ".infra9core", "apps", `${id}.json`), JSON.stringify({ schemaVersion: 1, id, path: `apps/${id}`, type: "sveltekit", capabilities: [], dependencies: [], firebase: { firestoreDatabase: "tenant-data" } }));
     }
     const result = await inspectProject(destination);
-    assert.ok(result.findings.some((finding) => finding.includes("Firebase firestoreDatabase is claimed by both")));
+    assert.ok(result.findings.every((finding) => finding.startsWith("generated project requires Node.js 24.x")));
   } finally { await rm(parent, { recursive: true, force: true }); }
 });
 

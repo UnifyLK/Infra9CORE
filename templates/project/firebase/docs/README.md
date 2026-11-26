@@ -1,39 +1,23 @@
-# Engineering documentation
+# Firebase infrastructure documentation
 
-Build in this order: domain model, ADRs, API contracts, hexagonal boundaries,
-Firebase data model and security rules, observability, CI/CD, frontend,
-testing, then runbooks. ADRs are append-only.
+The Firebase backend profile provides Auth, Firestore, Storage, a deny-by-
+default Rules baseline, index boundaries, Emulator Suite configuration, and
+guarded deployment commands. Firebase is managed; Infra9CORE does not generate
+a self-hosted Firebase runtime.
 
-The `firebase/` directory owns Firebase Functions, Firestore rules and indexes,
-Storage rules, and Emulator Suite configuration. Firebase is a managed service;
-do not introduce a self-hosted Firebase-compatible runtime. Every human and
-coding agent must read root `AGENTS.md` before changing operations or structure.
+`.infra9core/apps/` is a generic application registry. `make app-create` adds
+only a path and technology metadata. It does not create or claim Firebase
+resources.
 
-## Multi-application Firebase projects
+Products own database topology, Functions runtimes, Hosting targets, resource
+relationships, authorization policy, and deployment selection in native
+Firebase configuration. To use named Firestore databases, add standard
+database-specific Rules and indexes entries to `firebase/firebase.json`, select
+the database explicitly in the product SDK, and test the resulting topology in
+the Emulator Suite. A Functions directory is merely an ownership boundary until
+the product supplies a supported runtime, dependencies, entry point, triggers,
+and explicit Firebase configuration.
 
-Use `.infra9core/apps/*.json` as the source-controlled registry for deployable
-applications. Registrations support nested paths (for example
-`apps/services/tenant-portal`), capabilities, package dependencies, and optional
-Firebase resource mappings. A registration is not a request to create Firebase
-resources: `make app-plan APP=tenant-portal` is non-mutating and documents the
-remote identifiers that an approved operator must verify.
-
-```bash
-make app-create APP=tenant-portal GROUP=services TYPE=sveltekit \
-  FIRESTORE_DATABASE=tenant-portal FUNCTIONS_CODEBASE=tenant-portal \
-  HOSTING_TARGET=tenant-portal HOSTING_SITE=example-tenant-portal \
-  HOSTING_PUBLIC=apps/services/tenant-portal/build
-make app-validate
-make app-config
-make app-plan APP=tenant-portal
-```
-
-`make app-config` renders `firebase/firebase.generated.json` from validated
-registrations without contacting Firebase. `make app-deploy APP=...` only deploys
-the selected Functions codebase and Hosting target after `CONFIRM_DEPLOY=1`; it
-does not deploy Firestore rules. For an existing Hosting site, first use the
-operator command emitted by `make app-plan` to associate the reviewed target
-with the existing site, review the resulting `.firebaserc` mapping, then set
-`CONFIRM_TARGETS=1` for Hosting deployment. Review database-specific rules and
-indexes with the full reviewed Firebase deployment workflow. Use 2nd-generation
-Functions for named Firestore database triggers.
+`make firebase-emulators` starts only the baseline configured emulators with a
+local/demo project identity. `make firebase-deploy` is guarded by the required
+project ID and deploys the reviewed project-owned configuration.

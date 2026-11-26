@@ -1,4 +1,4 @@
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 const locks = { npm: "package-lock.json", pnpm: "pnpm-lock.yaml", yarn: "yarn.lock", bun: "bun.lock" };
@@ -9,6 +9,15 @@ export async function inspectReadinessUpgrade(root, manifest) {
   const apps = manifest.project?.apps ?? [];
   const manager = manifest.project?.packageManager;
   if (manifest.project?.backend === "firebase" && !manifest.project?.containerization) notices.push("legacy Firebase project has implicit Docker containerization; no files were changed. Retain Docker or follow the native Firebase migration runbook deliberately");
+  if (manifest.project?.backend === "firebase") {
+    const entries = await readdir(path.join(root, ".infra9core", "apps")).catch(() => []);
+    for (const entry of entries.filter((item) => item.endsWith(".json"))) {
+      try {
+        const registration = JSON.parse(await readFile(path.join(root, ".infra9core", "apps", entry), "utf8"));
+        if (registration.firebase && typeof registration.firebase === "object") notices.push(`${entry} contains deprecated Firebase application-to-resource metadata; preserve topology in project-owned Firebase configuration and migrate it only through a reviewed consumer change`);
+      } catch { /* project doctor reports malformed registration files */ }
+    }
+  }
   if (apps.some((app) => ["sveltekit", "tauri"].includes(app))) {
     const expected = locks[manager];
     if (!expected || !(await exists(path.join(root, expected)))) notices.push(`missing authoritative ${expected ?? "package-manager"} lockfile; run '${manager} install', review, and commit it before adopting frozen CI or Docker installs`);

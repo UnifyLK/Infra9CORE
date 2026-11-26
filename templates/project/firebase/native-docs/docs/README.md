@@ -11,16 +11,14 @@ Suite. Docker, Docker Compose, Caddy, and container image registry controls are
 not generated. Every human and coding agent must read root `AGENTS.md` before
 changing operations or structure.
 
-## Multi-application Firebase projects
+## Application and Firebase boundaries
 
-Use `.infra9core/apps/*.json` as the source-controlled registry for deployable
-applications. Registrations support nested paths, capabilities, package
-dependencies, and optional Firebase resource mappings. A registration never
-creates Firebase resources: `make app-plan APP=tenant-portal` is non-mutating
-and identifies remote resources an approved operator must verify.
+Use `.infra9core/apps/*.json` only for generic application identity, path,
+technology, capabilities, and dependencies. `make app-create` never creates a
+database, Rules/indexes, Functions codebase, Hosting target, or remote resource.
 
-`make app-config` renders `firebase/firebase.generated.json` from validated
-registrations without contacting Firebase. `make app-deploy APP=...` requires
-explicit confirmation and deploys only the selected Functions codebase and
-Hosting target; it does not deploy Firestore rules. Review database-specific
-rules and indexes through the approved Firebase deployment workflow.
+The product owns Firebase topology in `firebase/firebase.json` and related
+native Firebase files. Add named databases, database-specific Rules/indexes,
+Functions runtimes, and Hosting only after recording the product decision and
+testing it through the Emulator Suite. The generated `functions/` directory is
+an ownership boundary, not an executable runtime.

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import process from "node:process";
 import { createInterface } from "node:readline/promises";
 import { applySarvaOpsPortAllocation } from "./sarvaops-ports.mjs";
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const configPath = path.join(root, ".infra9core", "config.json");
 const yes = process.argv.includes("--yes");
 const force = process.argv.includes("--force-managed-files");

@@ -63,7 +63,7 @@ test("always creates the project structure contract", async () => {
 
 test("Firebase profile generates a managed Firebase boundary without Supabase", async () => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "infra9core-firebase-"));
-  const destination = path.join(parent, "desktop");
+  const destination = path.join(parent, "firebase project");
   try {
     await generateProject({
       destination, projectName: "Firebase Desktop", apps: ["tauri"], backend: "firebase",
@@ -74,7 +74,8 @@ test("Firebase profile generates a managed Firebase boundary without Supabase", 
     assert.deepEqual(manifest.project.applicationRegistry, { directory: ".infra9core/apps", schemaVersion: 1 });
     const desktopRegistration = JSON.parse(await readFile(path.join(destination, ".infra9core/apps/desktop.json"), "utf8"));
     assert.equal(desktopRegistration.path, "apps/desktop");
-    await readFile(path.join(destination, "firebase/firebase.json"), "utf8");
+    const firebaseConfig = JSON.parse(await readFile(path.join(destination, "firebase/firebase.json"), "utf8"));
+    assert.equal("functions" in firebaseConfig, false);
     assert.match(await readFile(path.join(destination, "firebase/firestore.rules"), "utf8"), /allow read, write: if false/);
     await assert.rejects(() => readdir(path.join(destination, "supabase")), { code: "ENOENT" });
     await assert.rejects(() => readdir(path.join(destination, "infra", "supabase")), { code: "ENOENT" });
@@ -83,16 +84,11 @@ test("Firebase profile generates a managed Firebase boundary without Supabase", 
     assert.match(await readFile(path.join(destination, "AGENTS.md"), "utf8"), /managed Firebase/i);
     await execute(process.execPath, ["tools/infra9core-configure.mjs", "--yes"], { cwd: destination });
     assert.match(await readFile(path.join(destination, "docs/infra9core/FIRST_RUN_AGENT_PROMPT.md"), "utf8"), /emulator/i);
-    await execute(process.execPath, ["tools/infra9core-app.mjs", "create", "APP=tenant-portal", "GROUP=services", "TYPE=sveltekit", "FIRESTORE_DATABASE=tenant-portal", "FUNCTIONS_CODEBASE=tenant-portal", "HOSTING_TARGET=tenant-portal", "HOSTING_SITE=example-tenant-portal", "HOSTING_PUBLIC=apps/services/tenant-portal/build"], { cwd: destination });
+    await execute(process.execPath, ["tools/infra9core-app.mjs", "create", "APP=sample-app", "GROUP=services", "TYPE=sveltekit"], { cwd: destination });
     await execute(process.execPath, ["tools/infra9core-app.mjs", "validate"], { cwd: destination });
-    const plan = await execute(process.execPath, ["tools/infra9core-app.mjs", "plan", "APP=tenant-portal"], { cwd: destination });
-    assert.match(plan.stdout, /firebase target:apply hosting tenant-portal example-tenant-portal/);
-    await execute(process.execPath, ["tools/infra9core-app.mjs", "firebase-config"], { cwd: destination });
-    const rendered = JSON.parse(await readFile(path.join(destination, "firebase/firebase.generated.json"), "utf8"));
-    assert.deepEqual(rendered.firestore[0].database, "tenant-portal");
-    assert.deepEqual(rendered.functions[0].codebase, "tenant-portal");
-    assert.deepEqual(rendered.hosting[0].target, "tenant-portal");
-    assert.match(await readFile(path.join(destination, "firebase/firestore/tenant-portal.rules"), "utf8"), /allow read, write: if false/);
+    const registration = JSON.parse(await readFile(path.join(destination, ".infra9core/apps/sample-app.json"), "utf8"));
+    assert.equal("firebase" in registration, false);
+    await assert.rejects(readFile(path.join(destination, "firebase/firebase.generated.json")), { code: "ENOENT" });
   } finally { await rm(parent, { recursive: true, force: true }); }
 });
 

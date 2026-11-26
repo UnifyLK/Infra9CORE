@@ -29,4 +29,5 @@ Generated repositories must always contain `apps`, `docs`, `infra`, `packages`,
 - [Release recovery runbook](runbooks/release-recovery.md)
 - [Upstream reference review](upstream-reference-review.md)
 - [ADR 0006: optional deployment port-allocation profiles](adr/0006-optional-deployment-port-allocation-profiles.md)
+- [ADR 0007: product-agnostic capability boundaries](adr/0007-product-agnostic-capability-boundaries.md)
 - [Multi-application Firebase projects](multi-application-firebase.md)
